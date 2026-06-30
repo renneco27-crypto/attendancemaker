@@ -25,3 +25,6 @@ build/
 # Old code (moved to web-app/)
 expo-app/
 teacher-dashboard/
+
+# Supabase local cache
+supabase/.temp/

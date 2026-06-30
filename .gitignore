@@ -1,0 +1,27 @@
+# Node
+node_modules/
+.DS_Store
+
+# Log files
+logs/
+*.log
+.npm
+.yarn
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+
+# Build
+dist/
+build/
+
+# Old code (moved to web-app/)
+expo-app/
+teacher-dashboard/

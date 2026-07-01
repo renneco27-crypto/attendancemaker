@@ -31,6 +31,7 @@ type Tab = 'session' | 'registrations' | 'roster'
 
 export default function TeacherSession({ onLogout }: Props) {
   const [teacherId, setTeacherId] = useState('')
+  const teacherIdRef = useRef('')
   const [teacherName, setTeacherName] = useState('')
   const [className, setClassName] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -58,6 +59,7 @@ export default function TeacherSession({ onLogout }: Props) {
     try {
       const { data: { user } } = await supabase().auth.getUser()
       if (!user) return
+      teacherIdRef.current = user.id
       setTeacherId(user.id)
       setTeacherName(user.email?.split('@')[0]?.replace(/[.].*/, '') ??
         user.user_metadata?.full_name ?? 'Teacher')
@@ -79,11 +81,13 @@ export default function TeacherSession({ onLogout }: Props) {
     if (data) setPastClasses([...new Set(data.map(r => r.class_name))])
   }
 
-  async function fetchRoster(uid: string) {
+  async function fetchRoster(uid?: string) {
+    const tid = uid || teacherIdRef.current || teacherId
+    if (!tid) return
     const { data, error } = await supabase()
       .from('device_registrations')
       .select('id, student_name, created_at, status')
-      .eq('teacher_id', uid || teacherId)
+      .eq('teacher_id', tid)
       .order('created_at', { ascending: false })
     if (error) console.error('fetchRoster error:', error.message)
     if (data) setRoster(data as RosterEntry[])
@@ -104,11 +108,19 @@ export default function TeacherSession({ onLogout }: Props) {
   }
 
   async function handleApprove(requestId: string) {
+    let uid = teacherIdRef.current || teacherId
+    if (!uid) {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) return
+      uid = user.id
+      teacherIdRef.current = uid
+      setTeacherId(uid)
+    }
     const { error } = await supabase()
       .from('device_registrations')
       .update({ status: 'approved' })
       .eq('id', requestId)
-      .eq('teacher_id', teacherId)
+      .eq('teacher_id', uid)
     if (!error) fetchPending()
   }
 
@@ -119,11 +131,18 @@ export default function TeacherSession({ onLogout }: Props) {
 
   async function handleAddStudent() {
     if (!newStudentName.trim()) return
-    if (!teacherId) { alert('Teacher ID not available. Try logging out and back in.'); return }
+    let uid = teacherIdRef.current || teacherId
+    if (!uid) {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) { alert('Not authenticated. Please log out and log back in.'); return }
+      uid = user.id
+      teacherIdRef.current = uid
+      setTeacherId(uid)
+    }
     const { error } = await supabase()
       .from('device_registrations')
-      .insert({ student_name: newStudentName.trim(), teacher_id: teacherId, device_identifier: '', status: 'pending' })
-    if (!error) { setNewStudentName(''); fetchRoster(teacherId) }
+      .insert({ student_name: newStudentName.trim(), teacher_id: uid, device_identifier: '', status: 'pending' })
+    if (!error) { setNewStudentName(''); fetchRoster(uid) }
     else { alert('Failed to add student: ' + error.message) }
   }
 
@@ -138,10 +157,18 @@ export default function TeacherSession({ onLogout }: Props) {
   }
 
   async function startSession() {
-    if (!className.trim() || !teacherId) return
+    if (!className.trim()) return
+    let uid = teacherIdRef.current || teacherId
+    if (!uid) {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) { alert('Not authenticated. Please log out and log back in.'); return }
+      uid = user.id
+      teacherIdRef.current = uid
+      setTeacherId(uid)
+    }
     let id, rotation_key
     try {
-      const result = await createSession(className.trim(), teacherId)
+      const result = await createSession(className.trim(), uid)
       id = result.id
       rotation_key = result.rotation_key
     } catch (e: any) {
@@ -235,7 +262,7 @@ export default function TeacherSession({ onLogout }: Props) {
         <div className="teacher-tabs">
           <button className={`tab-btn ${tab === 'session' ? 'active' : ''}`} onClick={() => setTab('session')}>Session</button>
           <button className={`tab-btn ${tab === 'registrations' ? 'active' : ''}`} onClick={() => { setTab('registrations'); fetchPending() }}>Registrations</button>
-          <button className={`tab-btn ${tab === 'roster' ? 'active' : ''}`} onClick={() => { setTab('roster'); fetchRoster(teacherId) }}>Roster</button>
+          <button className={`tab-btn ${tab === 'roster' ? 'active' : ''}`} onClick={() => { setTab('roster'); fetchRoster() }}>Roster</button>
         </div>
       </div>
 

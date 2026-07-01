@@ -136,8 +136,10 @@ input:focus { border-color: var(--green2); background: #fff; }
 }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 .home-sub { color: rgba(255,255,255,.5); font-size: 14px; line-height: 1.65; margin-bottom: 16px; animation: fadeUp .7s .15s ease both; }
-.home-btns { width: 100%; display: flex; flex-direction: column; gap: 18px; animation: fadeUp .7s .25s ease both; }
-.home-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.home-btns { width: 100%; display: flex; flex-direction: column; animation: fadeUp .7s .25s ease both; }
+.home-btns .btn-primary { margin-top: 12px; }
+.home-row { display: grid; grid-template-columns: 1fr 1fr; }
+.home-row .btn-outline { margin-top: 14px; }
 
 /* Geo pill */
 .geo-pill {
@@ -205,7 +207,7 @@ input:focus { border-color: var(--green2); background: #fff; }
 .qr-viewport::before, .qr-viewport::after,
 .qr-br::before, .qr-br::after {
   content: ''; position: absolute; width: 36px; height: 36px;
-  border-color: #fff; border-style: solid;
+  border-color: #fff; border-style: solid; z-index: 2;
 }
 .qr-viewport::before { top: 10px; left: 10px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
 .qr-viewport::after  { top: 10px; right: 10px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
@@ -214,9 +216,11 @@ input:focus { border-color: var(--green2); background: #fff; }
 .scan-line {
   position: absolute; left: 20px; right: 20px; height: 2px;
   background: #fff; border-radius: 2px; box-shadow: 0 0 12px #fff, 0 0 24px rgba(255,255,255,.4);
-  animation: scanMove 2s linear infinite;
+  animation: scanMove 2s linear infinite; z-index: 2;
 }
 @keyframes scanMove { 0%{top:30px;} 100%{top:220px;} }
+#qr-scanner { z-index: 1; }
+#qr-scanner video { border-radius: 20px; }
 .scan-hint { color: rgba(255,255,255,.7); font-size: 13px; text-align: center; line-height: 1.7; max-width: 240px; }
 .scanner-btns { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 

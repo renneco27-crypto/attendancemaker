@@ -92,11 +92,15 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
       const rk = data.rotation_key || data.t
       if (!sid || !rk) return
 
-      // avoid duplicate
       if (capturedRef.current.some(c => c.rotation_key === rk)) return
 
       capturedRef.current.push({ session_id: sid, rotation_key: rk })
       setCapturedCount(capturedRef.current.length)
+
+      if (capturedRef.current.length >= 2) {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        finishCapture()
+      }
     } catch {}
   }
 

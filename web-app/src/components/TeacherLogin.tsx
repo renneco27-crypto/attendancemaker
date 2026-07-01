@@ -16,8 +16,11 @@ export default function TeacherLogin({ onLogin, onBack }: Props) {
     setLoading(true)
     setError('')
     try {
-      const { error } = await supabase().auth.signInWithPassword({ email, password })
-      if (error) { setError(error.message); setLoading(false); return }
+      const result: any = await Promise.race([
+        supabase().auth.signInWithPassword({ email, password }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timed out after 15s. Check your internet or Supabase URL.')), 15000)),
+      ])
+      if (result.error) { setError(result.error.message); setLoading(false); return }
       onLogin()
     } catch (e: any) {
       setError(e?.message || 'Connection error. Try again.')

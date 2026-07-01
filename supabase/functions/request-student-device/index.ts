@@ -28,7 +28,7 @@ serve(async (req) => {
 
     const { data: pendingRegs, error: lookupError } = await supabase
       .from('device_registrations')
-      .select('id, student_name')
+      .select('id, student_id, student_name')
       .eq('status', 'pending')
       .eq('device_identifier', '')
       .ilike('student_name', student_name.trim())
@@ -113,9 +113,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR' }), {
+    console.error('request-student-device error:', err)
+    return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Unknown error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })

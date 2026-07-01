@@ -27,9 +27,9 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
     })
 
     if (error || !data?.success) {
-      const reason = data?.reason ?? 'SERVER_ERROR'
-      const serverMsg = data?.message || ''
-      console.error('Registration failed:', reason, serverMsg, error)
+      const reason = data?.reason ?? ''
+      const serverMsg = data?.message || error?.message || JSON.stringify(error)
+      console.error('Registration failed:', { reason, serverMsg, error, data })
       if (reason === 'STUDENT_NOT_FOUND') {
         setErrorMsg('Name not found. Make sure your teacher added you to the system first.')
       } else if (reason === 'AMBIGUOUS_NAME') {
@@ -37,7 +37,7 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
       } else if (reason === 'ALREADY_APPROVED') {
         setErrorMsg('This name already has an approved device. Ask your teacher to delete it from the roster first.')
       } else {
-        setErrorMsg('Something went wrong. Try again.' + (serverMsg ? ' (' + serverMsg + ')' : ''))
+        setErrorMsg('Error: ' + serverMsg)
       }
       setPhase('failed')
       return

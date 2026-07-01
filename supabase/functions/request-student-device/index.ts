@@ -26,7 +26,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const { data: registrations, error: lookupError } = await supabase
+    const { data: pendingRegs, error: lookupError } = await supabase
       .from('device_registrations')
       .select('id, student_name')
       .eq('status', 'pending')
@@ -34,7 +34,26 @@ serve(async (req) => {
       .ilike('student_name', student_name.trim())
       .limit(2)
 
-    if (lookupError || !registrations || registrations.length === 0) {
+    if (lookupError || !pendingRegs || pendingRegs.length === 0) {
+      // Check if the student has an approved device already
+      const { data: approved } = await supabase
+        .from('device_registrations')
+        .select('id')
+        .eq('status', 'approved')
+        .ilike('student_name', student_name.trim())
+        .maybeSingle()
+
+      if (approved) {
+        return new Response(JSON.stringify({
+          success: false,
+          reason: 'ALREADY_APPROVED',
+          message: 'This name already has an approved device.',
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       return new Response(JSON.stringify({
         success: false,
         reason: 'STUDENT_NOT_FOUND',
@@ -45,7 +64,7 @@ serve(async (req) => {
       })
     }
 
-    if (registrations.length > 1) {
+    if (pendingRegs.length > 1) {
       return new Response(JSON.stringify({
         success: false,
         reason: 'AMBIGUOUS_NAME',
@@ -56,7 +75,7 @@ serve(async (req) => {
       })
     }
 
-    const reg = registrations[0]
+    const reg = pendingRegs[0]
 
     // Revoke any existing approved device for this student
     const { data: existingApproved } = await supabase

@@ -320,11 +320,15 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--sub); te
 .chips-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin-bottom: 8px; }
 .class-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .chip {
+  display: inline-flex; align-items: center; gap: 6px;
   padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border);
   background: var(--white); font-size: 12px; font-weight: 600; color: var(--sub);
-  cursor: pointer; transition: all .12s;
+  transition: all .12s;
 }
 .chip.selected { background: var(--green2); border-color: var(--green2); color: #fff; }
+.chip-text { cursor: pointer; }
+.chip-x { cursor: pointer; color: var(--red); font-size: 16px; font-weight: 700; line-height: 1; opacity: .5; transition: opacity .12s; }
+.chip-x:hover { opacity: 1; }
 
 /* Registrations */
 .reg-list-card { background: var(--card); border-radius: 18px; overflow: hidden; margin-bottom: 14px; }

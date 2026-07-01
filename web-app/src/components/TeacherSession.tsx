@@ -44,7 +44,8 @@ export default function TeacherSession({ onLogout }: Props) {
   const [tab, setTab] = useState<Tab>('session')
   const [newStudentName, setNewStudentName] = useState('')
   const [roster, setRoster] = useState<RosterEntry[]>([])
-  const [pastClasses, setPastClasses] = useState<string[]>([])
+  interface PastClass { id: string; class_name: string }
+  const [pastClasses, setPastClasses] = useState<PastClass[]>([])
   const [selectedChip, setSelectedChip] = useState('')
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const channelRef = useRef<any>(null)
@@ -85,11 +86,11 @@ export default function TeacherSession({ onLogout }: Props) {
   async function fetchPastClasses(uid: string) {
     const { data } = await supabase()
       .from('attendance_sessions')
-      .select('class_name')
+      .select('id, class_name')
       .eq('teacher_id', uid)
       .order('created_at', { ascending: false })
-      .limit(10)
-    if (data) setPastClasses([...new Set(data.map(r => r.class_name))])
+      .limit(20)
+    if (data) setPastClasses(data)
   }
 
   async function fetchRoster(uid?: string) {
@@ -177,6 +178,13 @@ export default function TeacherSession({ onLogout }: Props) {
   function selectChip(name: string) {
     setSelectedChip(name)
     setClassName(name)
+  }
+
+  async function deleteSession(sessionId: string) {
+    if (!confirm('Delete this class session and its attendance records?')) return
+    await supabase().from('attendance_records').delete().eq('session_id', sessionId)
+    await supabase().from('attendance_sessions').delete().eq('id', sessionId)
+    fetchPastClasses(teacherIdRef.current || teacherId)
   }
 
   async function startSession() {
@@ -306,8 +314,11 @@ export default function TeacherSession({ onLogout }: Props) {
             {pastClasses.length > 0 && <div className="chips-label">Recent Classes</div>}
             {pastClasses.length > 0 && (
               <div className="class-chips">
-                {pastClasses.map(name => (
-                  <div key={name} className={`chip ${selectedChip === name ? 'selected' : ''}`} onClick={() => selectChip(name)}>{name}</div>
+                {pastClasses.map(s => (
+                  <div key={s.id} className={`chip ${selectedChip === s.class_name ? 'selected' : ''}`}>
+                    <span className="chip-text" onClick={() => selectChip(s.class_name)}>{s.class_name}</span>
+                    <span className="chip-x" onClick={(e) => { e.stopPropagation(); deleteSession(s.id) }}>×</span>
+                  </div>
                 ))}
               </div>
             )}

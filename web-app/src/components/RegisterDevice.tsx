@@ -52,7 +52,7 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
             .eq('id', row.id)
           if (upErr) { setErrorMsg('Error updating: ' + upErr.message); setPhase('failed'); return }
           setMessage('Device registered! You can now scan attendance.')
-          setPhase('success'); return
+          setPhase('success'); onRegistered(pin); return
         }
         setErrorMsg('This registration was revoked. Ask your teacher to add you again.')
         setPhase('failed'); return
@@ -71,6 +71,7 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
 
       setMessage('Device registered! You can now scan attendance.')
       setPhase('success')
+      onRegistered(pin)
     } catch (err: any) {
       setErrorMsg('Error: ' + (err?.message || 'Unknown error'))
       setPhase('failed')
@@ -124,10 +125,11 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
         )}
         {phase === 'success' && (
           <div className="reg-result">
-            <div className="reg-icon">✅</div>
+            <div className="reg-icon">⏳</div>
             <h3>Registered!</h3>
             <p>{message}</p>
-            <button className="btn-primary mt24" onClick={() => onRegistered(pin)}>Continue to Scanner</button>
+            <p style={{ marginTop: 8, color: 'var(--gold)', fontWeight: 600, fontSize: 14 }}>Waiting for teacher approval. Use your PIN to scan once approved.</p>
+            <button className="btn-primary mt24" onClick={onBack}>Back to Home</button>
           </div>
         )}
         {phase === 'failed' && (

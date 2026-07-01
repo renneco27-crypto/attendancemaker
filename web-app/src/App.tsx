@@ -21,11 +21,13 @@ export default function App() {
   }, [])
 
   function go(id: Phase) { setPhase(id); window.scrollTo(0, 0) }
-  function handleRegistered(pin: string) { setPinValue(pin); setPhase('scanner') }
+  function handleRegistered(pin: string) { setPinValue(pin) }
   async function handleSelectRole(role: string) {
     if (role === 'teacher') {
       const { data: { session } } = await supabase().auth.getSession()
       go(session ? 'teacher' : 'teacher-login')
+    } else if (role === 'student') {
+      go('pin')
     } else {
       go('register')
     }

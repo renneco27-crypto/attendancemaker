@@ -1,30 +1,52 @@
 import React, { useState } from 'react'
+import { supabase } from '../services/supabase'
+import { getDeviceId } from '../utils/device'
 
 interface Props {
   onSuccess: (pin: string) => void
   onBack: () => void
 }
 
-const CORRECT_PIN = '1234'
+type PinPhase = 'entry' | 'checking' | 'pending' | 'notfound'
 
 export default function PINGate({ onSuccess, onBack }: Props) {
   const [pin, setPin] = useState('')
   const [error, setError] = useState(false)
+  const [phase, setPhase] = useState<PinPhase>('entry')
+  const [studentName, setStudentName] = useState('')
+  const [checkMsg, setCheckMsg] = useState('')
 
   function key(d: string) {
-    if (pin.length >= 4) return
+    if (pin.length >= 4 || phase !== 'entry') return
     const next = pin + d
     setPin(next)
     setError(false)
     if (next.length === 4) {
-      setTimeout(() => {
-        if (next === CORRECT_PIN) {
-          onSuccess(next)
-        } else {
-          setError(true)
-          setTimeout(() => setPin(''), 900)
-        }
-      }, 120)
+      setPhase('checking')
+      setCheckMsg('Verifying…')
+      setTimeout(() => verifyPin(next), 300)
+    }
+  }
+
+  async function verifyPin(entered: string) {
+    const deviceId = getDeviceId()
+    const { data } = await supabase()
+      .from('device_registrations')
+      .select('status, student_name')
+      .eq('pin', entered)
+      .eq('device_identifier', deviceId)
+      .limit(1)
+
+    if (data && data.length > 0) {
+      const row = data[0]
+      setStudentName(row.student_name)
+      if (row.status === 'approved') {
+        onSuccess(entered)
+        return
+      }
+      setPhase('pending')
+    } else {
+      setPhase('notfound')
     }
   }
 
@@ -50,31 +72,65 @@ export default function PINGate({ onSuccess, onBack }: Props) {
           </div>
           <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>← Back</button>
         </div>
-        <h2 style={{ fontFamily: "'Sora','Inter',sans-serif", fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 6 }}>Enter Access Code</h2>
-        <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 14 }}>4-digit PIN required to scan</p>
+        <h2 style={{ fontFamily: "'Sora','Inter',sans-serif", fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 6 }}>Enter Your PIN</h2>
+        <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 14 }}>4-digit PIN tied to your registered device</p>
       </div>
-      <div className="pin-card">
-        <div className="pin-dots">
-          <div className={dotClass(0)} />
-          <div className={dotClass(1)} />
-          <div className={dotClass(2)} />
-          <div className={dotClass(3)} />
+
+      {phase === 'entry' && (
+        <div className="pin-card">
+          <div className="pin-dots">
+            <div className={dotClass(0)} />
+            <div className={dotClass(1)} />
+            <div className={dotClass(2)} />
+            <div className={dotClass(3)} />
+          </div>
+          <div className="pin-error">{error ? 'Incorrect PIN. Try again.' : ''}</div>
+          <div className="pin-pad">
+            <button className="pin-key" onClick={() => key('1')}>1</button>
+            <button className="pin-key" onClick={() => key('2')}>2</button>
+            <button className="pin-key" onClick={() => key('3')}>3</button>
+            <button className="pin-key" onClick={() => key('4')}>4</button>
+            <button className="pin-key" onClick={() => key('5')}>5</button>
+            <button className="pin-key" onClick={() => key('6')}>6</button>
+            <button className="pin-key" onClick={() => key('7')}>7</button>
+            <button className="pin-key" onClick={() => key('8')}>8</button>
+            <button className="pin-key" onClick={() => key('9')}>9</button>
+            <button className="pin-key zero" onClick={() => key('0')}>0</button>
+            <button className="pin-key del" onClick={del}>⌫</button>
+          </div>
         </div>
-        <div className="pin-error">{error ? 'Incorrect PIN. Try again.' : ''}</div>
-        <div className="pin-pad">
-          <button className="pin-key" onClick={() => key('1')}>1</button>
-          <button className="pin-key" onClick={() => key('2')}>2</button>
-          <button className="pin-key" onClick={() => key('3')}>3</button>
-          <button className="pin-key" onClick={() => key('4')}>4</button>
-          <button className="pin-key" onClick={() => key('5')}>5</button>
-          <button className="pin-key" onClick={() => key('6')}>6</button>
-          <button className="pin-key" onClick={() => key('7')}>7</button>
-          <button className="pin-key" onClick={() => key('8')}>8</button>
-          <button className="pin-key" onClick={() => key('9')}>9</button>
-          <button className="pin-key zero" onClick={() => key('0')}>0</button>
-          <button className="pin-key del" onClick={del}>⌫</button>
+      )}
+
+      {phase === 'checking' && (
+        <div className="reg-card">
+          <div className="reg-result" style={{ padding: 40 }}>
+            <div style={{ width: 40, height: 40, border: '4px solid var(--border)', borderTopColor: 'var(--green2)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+            <h3>{checkMsg}</h3>
+          </div>
         </div>
-      </div>
+      )}
+
+      {phase === 'pending' && (
+        <div className="reg-card">
+          <div className="reg-result">
+            <div className="reg-icon">⏳</div>
+            <h3>Waiting for Approval</h3>
+            <p>{studentName}, your device registration is pending teacher approval.</p>
+            <button className="btn-primary mt24" onClick={onBack}>Back to Home</button>
+          </div>
+        </div>
+      )}
+
+      {phase === 'notfound' && (
+        <div className="reg-card">
+          <div className="reg-result">
+            <div className="reg-icon">❌</div>
+            <h3>Not Registered</h3>
+            <p>No registration found for this PIN on this device. Please register first.</p>
+            <button className="btn-primary mt24" onClick={() => { setPhase('entry'); setPin('') }}>Try Again</button>
+          </div>
+        </div>
+      )}
     </>
   )
 }

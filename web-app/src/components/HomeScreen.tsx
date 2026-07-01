@@ -20,8 +20,8 @@ export default function HomeScreen({ onSelectRole }: Props) {
     if (!navigator.geolocation) { setGeoLabel('📍 Location unavailable'); return }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const dist = haversine(pos.coords.latitude, pos.coords.longitude, 11.022861, 124.605107)
-        setGeoLabel(dist <= 30 ? `📍 On campus (${Math.round(dist)}m)` : `📍 Off campus — ${Math.round(dist)}m away`)
+        const dist = haversine(pos.coords.latitude, pos.coords.longitude, 11.0027, 124.6075)
+        setGeoLabel(dist <= 300 ? `📍 On campus (${Math.round(dist)}m from gate)` : `📍 Off campus — ${Math.round(dist)}m away`)
       },
       () => setGeoLabel('📍 Location unavailable'),
       { enableHighAccuracy: true, timeout: 8000 }

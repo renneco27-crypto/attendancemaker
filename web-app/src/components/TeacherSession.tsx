@@ -64,12 +64,22 @@ export default function TeacherSession({ onLogout }: Props) {
       setTeacherId(user.id)
       setTeacherName(user.email?.split('@')[0]?.replace(/[.].*/, '') ??
         user.user_metadata?.full_name ?? 'Teacher')
+      cleanupOldPending()
       fetchPastClasses(user.id)
       fetchRoster(user.id)
       fetchPending(user.id)
     } catch (e) {
       alert('Failed to initialize: ' + (e instanceof Error ? e.message : e))
     }
+  }
+
+  async function cleanupOldPending() {
+    const cutoff = new Date(Date.now() - 2 * 86400000).toISOString()
+    await supabase()
+      .from('device_registrations')
+      .delete()
+      .lt('created_at', cutoff)
+      .eq('device_identifier', '')
   }
 
   async function fetchPastClasses(uid: string) {

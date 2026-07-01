@@ -22,27 +22,59 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
     setPhase('submitting')
     const deviceId = getDeviceId()
 
-    const { data, error } = await supabase().functions.invoke('request-student-device', {
-      body: { student_name: name.trim(), device_identifier: deviceId, pin },
-    })
-
-    if (error || !data?.success) {
-      const reason = data?.reason ?? ''
-      const serverMsg = data?.message || error?.message || JSON.stringify(error)
-      console.error('Registration failed:', { reason, serverMsg, error, data })
-      if (reason === 'ALREADY_APPROVED') {
-        setErrorMsg('This name already has an approved device.')
-      } else if (reason === 'REVOKED') {
-        setErrorMsg('This registration was revoked. Ask your teacher to add you again.')
-      } else {
-        setErrorMsg('Error: ' + serverMsg)
+    try {
+      const { data: teachers } = await supabase()
+        .from('teachers')
+        .select('auth_user_id')
+        .limit(1)
+      if (!teachers || teachers.length === 0) {
+        setErrorMsg('No teacher configured in the system.')
+        setPhase('failed'); return
       }
-      setPhase('failed')
-      return
-    }
+      const teacherId = teachers[0].auth_user_id
 
-    setMessage('Device registered! You can now scan attendance.')
-    setPhase('success')
+      const { data: existing } = await supabase()
+        .from('device_registrations')
+        .select('id, status')
+        .ilike('student_name', name.trim())
+        .limit(1)
+
+      if (existing && existing.length > 0) {
+        const row = existing[0]
+        if (row.status === 'approved') {
+          setErrorMsg('This name already has an approved device.')
+          setPhase('failed'); return
+        }
+        if (row.status === 'pending') {
+          const { error: upErr } = await supabase()
+            .from('device_registrations')
+            .update({ device_identifier: deviceId, pin })
+            .eq('id', row.id)
+          if (upErr) { setErrorMsg('Error updating: ' + upErr.message); setPhase('failed'); return }
+          setMessage('Device registered! You can now scan attendance.')
+          setPhase('success'); return
+        }
+        setErrorMsg('This registration was revoked. Ask your teacher to add you again.')
+        setPhase('failed'); return
+      }
+
+      const { error: insErr } = await supabase()
+        .from('device_registrations')
+        .insert({
+          student_name: name.trim(),
+          device_identifier: deviceId,
+          pin,
+          teacher_id: teacherId,
+          status: 'pending',
+        })
+      if (insErr) { setErrorMsg('Error: ' + insErr.message); setPhase('failed'); return }
+
+      setMessage('Device registered! You can now scan attendance.')
+      setPhase('success')
+    } catch (err: any) {
+      setErrorMsg('Error: ' + (err?.message || 'Unknown error'))
+      setPhase('failed')
+    }
   }
 
   function pinError() {

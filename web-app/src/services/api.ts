@@ -34,6 +34,7 @@ export async function submitAttendance(
 export async function validateScan(body: {
   session_id: string
   rotation_key: string
+  previous_rotation_key: string
   student_device_id: string
   pin: string
 }): Promise<{ success: boolean; student_name?: string; error?: string }> {

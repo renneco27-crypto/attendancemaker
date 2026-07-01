@@ -46,7 +46,7 @@ serve(async (req) => {
 
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
-      .select('id, teacher_id, is_active')
+      .select('id, teacher_id, is_active, rotation_key, previous_rotation_keys')
       .eq('id', session_id)
       .single()
 
@@ -72,9 +72,17 @@ serve(async (req) => {
     }
 
     const newKey = crypto.randomUUID()
+    const prevKeys = session.previous_rotation_keys ?? []
+    prevKeys.push(session.rotation_key)
+    if (prevKeys.length > 5) prevKeys.shift()
+
     const { error: updateError } = await supabase
       .from('attendance_sessions')
-      .update({ rotation_key: newKey, rotation_key_updated_at: new Date().toISOString() })
+      .update({
+        rotation_key: newKey,
+        rotation_key_updated_at: new Date().toISOString(),
+        previous_rotation_keys: prevKeys,
+      })
       .eq('id', session_id)
 
     if (updateError) {

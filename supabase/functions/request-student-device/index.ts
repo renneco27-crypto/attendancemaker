@@ -57,6 +57,22 @@ serve(async (req) => {
     }
 
     const reg = registrations[0]
+
+    // Revoke any existing approved device for this student
+    const { data: existingApproved } = await supabase
+      .from('device_registrations')
+      .select('id')
+      .eq('student_id', reg.student_id)
+      .eq('status', 'approved')
+      .maybeSingle()
+
+    if (existingApproved) {
+      await supabase
+        .from('device_registrations')
+        .update({ status: 'revoked' })
+        .eq('id', existingApproved.id)
+    }
+
     const { error: updateError } = await supabase
       .from('device_registrations')
       .update({ device_identifier })

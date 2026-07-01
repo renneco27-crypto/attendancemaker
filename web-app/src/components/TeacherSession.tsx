@@ -120,6 +120,7 @@ export default function TeacherSession({ onLogout }: Props) {
       .from('device_registrations')
       .insert({ student_name: newStudentName.trim(), teacher_id: teacherId, device_identifier: '', status: 'pending' })
     if (!error) { setNewStudentName(''); fetchRoster(teacherId) }
+    else { alert('Failed to add student: ' + error.message) }
   }
 
   async function handleRemoveStudent(deviceRegistrationId: string) {
@@ -134,7 +135,15 @@ export default function TeacherSession({ onLogout }: Props) {
 
   async function startSession() {
     if (!className.trim() || !teacherId) return
-    const { id, rotation_key } = await createSession(className.trim(), teacherId)
+    let id, rotation_key
+    try {
+      const result = await createSession(className.trim(), teacherId)
+      id = result.id
+      rotation_key = result.rotation_key
+    } catch (e: any) {
+      alert('Failed to start session: ' + (e.message || e))
+      return
+    }
     setSessionId(id)
     setPhase('active')
     renderQr(JSON.stringify({ session_id: id, rotation_key }))
@@ -155,7 +164,7 @@ export default function TeacherSession({ onLogout }: Props) {
     })
     channel.subscribe()
     channelRef.current = channel
-    rotationTimer.current = setInterval(rotateKey, 2000)
+    rotationTimer.current = setInterval(rotateKey, 1000)
   }
 
   const rotateKey = useCallback(async () => {

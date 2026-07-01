@@ -12,11 +12,18 @@ serve(async (req) => {
   }
 
   try {
-    const { session_id, rotation_key, student_device_id, pin } = await req.json()
+    const { session_id, rotation_key, previous_rotation_key, student_device_id, pin } = await req.json()
 
-    if (!session_id || !rotation_key || !student_device_id || pin === undefined) {
+    if (!session_id || !rotation_key || !previous_rotation_key || !student_device_id || pin === undefined) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (rotation_key === previous_rotation_key) {
+      return new Response(JSON.stringify({ error: 'QR code expired, please rescan' }), {
+        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -26,10 +33,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // 1. Look up session
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
-      .select('id, teacher_id, rotation_key, is_active, expires_at')
+      .select('id, teacher_id, rotation_key, is_active, expires_at, previous_rotation_keys, rotation_key_updated_at')
       .eq('id', session_id)
       .single()
 
@@ -54,7 +60,6 @@ serve(async (req) => {
       })
     }
 
-    // 2. Check rotation key
     if (session.rotation_key !== rotation_key) {
       return new Response(JSON.stringify({ error: 'QR code expired, please rescan' }), {
         status: 401,
@@ -62,7 +67,22 @@ serve(async (req) => {
       })
     }
 
-    // 3. Look up device registration
+    const prevKeys = session.previous_rotation_keys ?? []
+    if (!prevKeys.includes(previous_rotation_key)) {
+      return new Response(JSON.stringify({ error: 'QR code expired, please rescan' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const keyAge = Date.now() - new Date(session.rotation_key_updated_at).getTime()
+    if (keyAge > 2000) {
+      return new Response(JSON.stringify({ error: 'QR code expired, please rescan' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const { data: deviceReg, error: deviceError } = await supabase
       .from('device_registrations')
       .select('id, student_id, student_name, status')
@@ -84,7 +104,6 @@ serve(async (req) => {
       })
     }
 
-    // 4. Check PIN
     const expectedPin = Deno.env.get('ATTENDANCE_PIN') ?? '1234'
     if (pin !== expectedPin) {
       return new Response(JSON.stringify({ error: 'Incorrect PIN' }), {
@@ -93,7 +112,6 @@ serve(async (req) => {
       })
     }
 
-    // 5. Check duplicate attendance
     const { data: existing } = await supabase
       .from('attendance_records')
       .select('id')
@@ -108,14 +126,9 @@ serve(async (req) => {
       })
     }
 
-    // 6. Insert attendance record
     const { error: insertError } = await supabase
       .from('attendance_records')
-      .insert({
-        session_id,
-        student_id: deviceReg.student_id,
-        scanned_at: new Date().toISOString(),
-      })
+      .insert({ session_id, student_id: deviceReg.student_id, scanned_at: new Date().toISOString() })
 
     if (insertError) {
       return new Response(JSON.stringify({ error: 'Server error' }), {

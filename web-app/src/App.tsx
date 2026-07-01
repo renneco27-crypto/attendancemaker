@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import HomeScreen from './components/HomeScreen'
 import PINGate from './components/PINGate'
 import StudentScanner from './components/StudentScanner'
 import TeacherLogin from './components/TeacherLogin'
 import TeacherSession from './components/TeacherSession'
 import RegisterDevice from './components/RegisterDevice'
+import { supabase } from './services/supabase'
 import './App.css'
 
 type Phase = 'home' | 'pin' | 'scanner' | 'teacher-login' | 'teacher' | 'register'
@@ -13,13 +14,27 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>('home')
   const [pinValue, setPinValue] = useState('')
 
+  useEffect(() => {
+    supabase().auth.getSession().then(({ data: { session } }) => {
+      if (session) setPhase('teacher')
+    }).catch(() => {})
+  }, [])
+
   function go(id: Phase) { setPhase(id); window.scrollTo(0, 0) }
   function handleRegistered(pin: string) { setPinValue(pin); setPhase('scanner') }
+  async function handleSelectRole(role: string) {
+    if (role === 'teacher') {
+      const { data: { session } } = await supabase().auth.getSession()
+      go(session ? 'teacher' : 'teacher-login')
+    } else {
+      go('register')
+    }
+  }
 
   return (
     <div className="app">
       <div className={`screen ${phase === 'home' ? 'active' : ''}`} id="home">
-        <HomeScreen onSelectRole={(role) => go(role === 'student' ? 'register' : role === 'teacher' ? 'teacher-login' : 'register')} />
+        <HomeScreen onSelectRole={handleSelectRole} />
       </div>
       <div className={`screen ${phase === 'pin' ? 'active' : ''}`} id="pin">
         <PINGate onSuccess={(pin) => { setPinValue(pin); setPhase('scanner') }} onBack={() => go('home')} />

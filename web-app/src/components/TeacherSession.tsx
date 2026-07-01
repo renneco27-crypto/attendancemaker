@@ -244,10 +244,8 @@ export default function TeacherSession({ onLogout }: Props) {
     setPhase('setup')
   }
 
-  async function handleLogout() {
+  function handleLogout() {
     cleanup()
-    try { await supabase().auth.signOut() } catch {}
-    resetSupabaseClient()
     onLogout()
   }
 

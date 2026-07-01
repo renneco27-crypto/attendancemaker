@@ -34,6 +34,7 @@ export default function TeacherSession({ onLogout }: Props) {
   const [teacherName, setTeacherName] = useState('')
   const [className, setClassName] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
   const [phase, setPhase] = useState<'setup' | 'active' | 'ended'>('setup')
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [attendees, setAttendees] = useState<Attendee[]>([])
@@ -54,14 +55,18 @@ export default function TeacherSession({ onLogout }: Props) {
   }
 
   async function init() {
-    const { data: { user } } = await supabase().auth.getUser()
-    if (!user) return
-    setTeacherId(user.id)
-    setTeacherName(user.email?.split('@')[0]?.replace(/[.].*/, '') ??
-      user.user_metadata?.full_name ?? 'Teacher')
-    fetchPastClasses(user.id)
-    fetchRoster(user.id)
-    fetchPending(user.id)
+    try {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) return
+      setTeacherId(user.id)
+      setTeacherName(user.email?.split('@')[0]?.replace(/[.].*/, '') ??
+        user.user_metadata?.full_name ?? 'Teacher')
+      fetchPastClasses(user.id)
+      fetchRoster(user.id)
+      fetchPending(user.id)
+    } catch (e) {
+      alert('Failed to initialize: ' + (e instanceof Error ? e.message : e))
+    }
   }
 
   async function fetchPastClasses(uid: string) {
@@ -75,24 +80,26 @@ export default function TeacherSession({ onLogout }: Props) {
   }
 
   async function fetchRoster(uid: string) {
-    const { data } = await supabase()
+    const { data, error } = await supabase()
       .from('device_registrations')
       .select('id, student_name, created_at, status')
       .eq('teacher_id', uid || teacherId)
       .order('created_at', { ascending: false })
+    if (error) console.error('fetchRoster error:', error.message)
     if (data) setRoster(data as RosterEntry[])
   }
 
   async function fetchPending(uid?: string) {
     const tid = uid || teacherId
     if (!tid) return
-    const { data } = await supabase()
+    const { data, error } = await supabase()
       .from('device_registrations')
       .select('id, student_name, device_identifier, created_at')
       .eq('teacher_id', tid)
       .eq('status', 'pending')
       .neq('device_identifier', '')
       .order('created_at', { ascending: false })
+    if (error) console.error('fetchPending error:', error.message)
     if (data) setPendingList(data as PendingRequest[])
   }
 
@@ -144,6 +151,7 @@ export default function TeacherSession({ onLogout }: Props) {
       alert('Failed to start session: ' + (e.message || e))
       return
     }
+    sessionIdRef.current = id
     setSessionId(id)
     setPhase('active')
     renderQr(JSON.stringify({ session_id: id, rotation_key }))
@@ -168,8 +176,9 @@ export default function TeacherSession({ onLogout }: Props) {
   }
 
   const rotateKey = useCallback(async () => {
-    if (!sessionId) return
-    const result = await rotateSessionKey(sessionId)
+    const sid = sessionIdRef.current
+    if (!sid) return
+    const result = await rotateSessionKey(sid)
     if ('ended' in result && result.ended) {
       if (rotationTimer.current) clearInterval(rotationTimer.current)
       rotationTimer.current = null
@@ -177,9 +186,9 @@ export default function TeacherSession({ onLogout }: Props) {
       return
     }
     if ('rotation_key' in result) {
-      renderQr(JSON.stringify({ session_id: sessionId, rotation_key: result.rotation_key }))
+      renderQr(JSON.stringify({ session_id: sid, rotation_key: result.rotation_key }))
     }
-  }, [sessionId])
+  }, [])
 
   function renderQr(text: string) {
     QRCode.toDataURL(text, { width: 260, margin: 1 }, (err, url) => {
@@ -188,17 +197,20 @@ export default function TeacherSession({ onLogout }: Props) {
   }
 
   async function handleEndSession() {
-    if (!sessionId) return
+    const sid = sessionIdRef.current
+    if (!sid) return
     if (rotationTimer.current) { clearInterval(rotationTimer.current); rotationTimer.current = null }
     if (channelRef.current) { channelRef.current.unsubscribe(); channelRef.current = null }
     setQrDataUrl('')
-    await endSession(sessionId)
+    await endSession(sid)
+    sessionIdRef.current = null
     setPhase('ended')
   }
 
   function handleNewSession() {
     if (rotationTimer.current) { clearInterval(rotationTimer.current); rotationTimer.current = null }
     if (channelRef.current) { channelRef.current.unsubscribe(); channelRef.current = null }
+    sessionIdRef.current = null
     setSessionId(null)
     setQrDataUrl('')
     setAttendees([])
@@ -275,7 +287,7 @@ export default function TeacherSession({ onLogout }: Props) {
                 {qrDataUrl ? <img src={qrDataUrl} alt="QR" /> : <div style={{ width: 180, height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>Loading…</div>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="qr-hint">Refreshes every 2s</div>
+                <div className="qr-hint">Refreshes every 1s</div>
               </div>
             </div>
 

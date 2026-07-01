@@ -33,3 +33,7 @@ policy = "per_worker"
   [functions.rotate-session-key]
   enabled = true
   verify_jwt = true
+
+  [functions.kick-from-session]
+  enabled = true
+  verify_jwt = true

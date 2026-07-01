@@ -58,6 +58,13 @@ export async function revokeDevice(deviceRegistrationId: string): Promise<boolea
   return !error
 }
 
+export async function kickFromSession(attendanceRecordId: string): Promise<boolean> {
+  const { error } = await supabase().functions.invoke('kick-from-session', {
+    body: { attendance_record_id: attendanceRecordId },
+  })
+  return !error
+}
+
 export async function rotateSessionKey(sessionId: string): Promise<{ rotation_key: string } | { error: string; ended?: boolean }> {
   const { data, error } = await supabase().functions.invoke('rotate-session-key', {
     body: { session_id: sessionId },

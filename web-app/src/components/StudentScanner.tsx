@@ -2,13 +2,14 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { supabase } from '../services/supabase'
 import { getDeviceId } from '../utils/device'
+import { checkMockLocation } from '../utils/mockLocation'
 
 interface Props {
   onBack: () => void
   pinValue: string
 }
 
-type ScanPhase = 'idle' | 'scanning' | 'success' | 'fail' | 'geo-fail'
+type ScanPhase = 'idle' | 'scanning' | 'success' | 'fail' | 'geo-fail' | 'mock-fail'
 
 const SCANNER_ID = 'qr-scanner'
 const CAPTURE_WINDOW_MS = 10000
@@ -59,10 +60,12 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
     )
   }
 
-  function startScan() {
+  async function startScan() {
     finishingRef.current = false
     capturedRef.current = []
     setCapturedCount(0)
+    const { isMocked } = await checkMockLocation()
+    if (isMocked) { setScanPhase('mock-fail'); return }
     setScanPhase('scanning')
   }
 
@@ -199,7 +202,7 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
 
     const { error: insErr } = await supabase()
       .from('attendance_records')
-      .insert({ session_id: last.session_id, student_id: devReg.student_id, student_name: devReg.student_name, section: devReg.section })
+      .insert({ session_id: last.session_id, student_id: devReg.student_id, student_name: devReg.student_name, section: devReg.section, is_mock_location: false })
 
     if (insErr) {
       setErrorMsg('Server error. Try again.')
@@ -293,6 +296,18 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
           <div className="result-sub">You must be on ACLC Ormoc campus to scan attendance.</div>
           <div className="scanner-btns">
             <button className="btn-white" onClick={resetScanner}>Retry Location</button>
+            <button className="btn-white-ghost" onClick={onBack}>Back</button>
+          </div>
+        </div>
+      )}
+
+      {scanPhase === 'mock-fail' && (
+        <div className="scanner-body">
+          <div className="result-icon fail">📱</div>
+          <div className="result-title">Fake Location Detected</div>
+          <div className="result-sub">Please turn off mock GPS / fake location apps and try again.</div>
+          <div className="scanner-btns">
+            <button className="btn-white" onClick={resetScanner}>Try Again</button>
             <button className="btn-white-ghost" onClick={onBack}>Back</button>
           </div>
         </div>

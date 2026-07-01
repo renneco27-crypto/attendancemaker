@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../services/supabase'
-import { createSession, endSession, rotateSessionKey, revokeDevice } from '../services/api'
+import { createSession, endSession, rotateSessionKey, revokeDevice, kickFromSession } from '../services/api'
 import { resetSupabaseClient } from '../services/supabase'
 import MonthlyAttendance from './MonthlyAttendance'
 
@@ -27,6 +27,7 @@ interface Attendee {
   id: string
   student_name: string
   scanned_at: string
+  is_mock_location?: boolean
 }
 
 type Tab = 'session' | 'registrations' | 'roster' | 'attendance'
@@ -48,6 +49,7 @@ export default function TeacherSession({ onLogout }: Props) {
   interface PastClass { id: string; class_name: string }
   const [pastClasses, setPastClasses] = useState<PastClass[]>([])
   const [selectedChip, setSelectedChip] = useState('')
+  const [qrFullscreen, setQrFullscreen] = useState(false)
   const SECTIONS = ['BSIT 2-A', 'BSIT 2-B']
   const [selectedSection, setSelectedSection] = useState('')
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -106,18 +108,19 @@ export default function TeacherSession({ onLogout }: Props) {
     }
   }
 
-  async function fetchRoster() {
+  async function fetchRoster(section?: string) {
     let query = supabase()
       .from('device_registrations')
       .select('id, student_name, created_at, status')
       .neq('status', 'revoked')
-    if (selectedSection) query = query.eq('section', selectedSection)
+    const s = section !== undefined ? section : selectedSection
+    if (s) query = query.eq('section', s)
     const { data, error } = await query.order('created_at', { ascending: false })
     if (error) console.error('fetchRoster error:', error.message)
     if (data) setRoster(data as RosterEntry[])
   }
 
-  async function fetchPending() {
+  async function fetchPending(section?: string) {
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString()
     let query = supabase()
       .from('device_registrations')
@@ -125,7 +128,8 @@ export default function TeacherSession({ onLogout }: Props) {
       .eq('status', 'pending')
       .neq('device_identifier', '')
       .gte('created_at', twoDaysAgo)
-    if (selectedSection) query = query.eq('section', selectedSection)
+    const s = section !== undefined ? section : selectedSection
+    if (s) query = query.eq('section', s)
     const { data, error } = await query.order('created_at', { ascending: false })
     if (error) console.error('fetchPending error:', error.message)
     if (data) setPendingList(data as PendingRequest[])
@@ -165,6 +169,11 @@ export default function TeacherSession({ onLogout }: Props) {
   async function handleRemoveStudent(deviceRegistrationId: string) {
     const ok = await revokeDevice(deviceRegistrationId)
     if (ok) fetchRoster()
+  }
+
+  async function handleKick(attendanceRecordId: string) {
+    const ok = await kickFromSession(attendanceRecordId)
+    if (ok) setAttendees(prev => prev.filter(a => a.id !== attendanceRecordId))
   }
 
   function selectChip(name: string) {
@@ -209,7 +218,14 @@ export default function TeacherSession({ onLogout }: Props) {
       filter: `session_id=eq.${id}`,
     }, (payload: any) => {
       const r = payload.new
-      setAttendees(prev => [...prev, { id: r.id, student_name: r.student_name ?? 'Unknown', scanned_at: r.scanned_at }])
+      setAttendees(prev => [...prev, { id: r.id, student_name: r.student_name ?? 'Unknown', scanned_at: r.scanned_at, is_mock_location: r.is_mock_location ?? false }])
+    })
+    channel.on('postgres_changes', {
+      event: 'DELETE', schema: 'public', table: 'attendance_records',
+      filter: `session_id=eq.${id}`,
+    }, (payload: any) => {
+      const deletedId = payload.old.id
+      setAttendees(prev => prev.filter(a => a.id !== deletedId))
     })
     channel.subscribe()
     channelRef.current = channel
@@ -284,7 +300,7 @@ export default function TeacherSession({ onLogout }: Props) {
         <div className="section-row">
           <span className="section-label">Section:</span>
           <select className="section-select" value={selectedSection}
-            onChange={e => { setSelectedSection(e.target.value); fetchRoster(); fetchPending() }}>
+            onChange={e => { const s = e.target.value; setSelectedSection(s); fetchRoster(s); fetchPending(s) }}>
             <option value="">All Sections</option>
             {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -336,12 +352,19 @@ export default function TeacherSession({ onLogout }: Props) {
             <div className="qr-display-card">
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Show this QR to students</div>
               <div className="qr-content">
-                {qrDataUrl ? <img src={qrDataUrl} alt="QR" /> : <div style={{ width: 180, height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>Loading…</div>}
+                {qrDataUrl ? <img src={qrDataUrl} alt="QR" onClick={() => setQrFullscreen(true)} style={{ cursor: 'pointer' }} /> : <div style={{ width: 180, height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>Loading…</div>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div className="qr-hint">Refreshes every 1s</div>
               </div>
             </div>
+
+            {qrFullscreen && (
+              <div className="qr-fullscreen-overlay" onClick={() => setQrFullscreen(false)}>
+                <img src={qrDataUrl} alt="QR" className="qr-fullscreen-img" />
+                <span className="qr-fullscreen-close">✕</span>
+              </div>
+            )}
 
             <div className="att-table-card">
               <div className="att-table-head">
@@ -356,7 +379,9 @@ export default function TeacherSession({ onLogout }: Props) {
                     <div className="att-dot" />
                     <div className="att-num">{i + 1}</div>
                     <div className="att-name">{a.student_name}</div>
+                    {a.is_mock_location && <span className="att-mock-icon" title="Fake GPS detected">⚠️</span>}
                     <div className="att-time">{new Date(a.scanned_at).toLocaleTimeString()}</div>
+                    <button className="kick-btn" onClick={() => handleKick(a.id)}>Kick</button>
                   </div>
                 ))
               )}

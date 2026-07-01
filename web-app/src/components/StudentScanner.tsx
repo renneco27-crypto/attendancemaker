@@ -36,7 +36,7 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
   const finishingRef = useRef(false)
 
   useEffect(() => {
-    checkGeo()
+    //checkGeo() // geo check disabled for testing
     return () => { stopScanner(); if (timerRef.current) clearTimeout(timerRef.current) }
   }, [])
 

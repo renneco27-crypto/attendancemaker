@@ -15,6 +15,8 @@ export default function HomeScreen({ onSelectRole }: Props) {
   const [geoLabel, setGeoLabel] = useState('Locating you…')
 
   useEffect(() => {
+    setGeoLabel('📍 Geo check disabled')
+    /* geo check disabled for testing
     if (!navigator.geolocation) { setGeoLabel('📍 Location unavailable'); return }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -24,6 +26,8 @@ export default function HomeScreen({ onSelectRole }: Props) {
       () => setGeoLabel('📍 Location unavailable'),
       { enableHighAccuracy: true, timeout: 8000 }
     )
+    */
+
   }, [])
 
   return (

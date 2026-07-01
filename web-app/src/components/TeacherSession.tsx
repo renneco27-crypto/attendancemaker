@@ -153,9 +153,18 @@ export default function TeacherSession({ onLogout }: Props) {
       teacherIdRef.current = uid
       setTeacherId(uid)
     }
+    const name = newStudentName.trim()
+    const { data: existing } = await supabase()
+      .from('device_registrations')
+      .select('id')
+      .eq('teacher_id', uid)
+      .eq('student_name', name)
+      .neq('status', 'revoked')
+      .maybeSingle()
+    if (existing) { alert('Student "' + name + '" is already in the roster.'); return }
     const { error } = await supabase()
       .from('device_registrations')
-      .insert({ student_name: newStudentName.trim(), teacher_id: uid, device_identifier: '', status: 'pending' })
+      .insert({ student_name: name, teacher_id: uid, device_identifier: '', status: 'pending' })
     if (!error) { setNewStudentName(''); fetchRoster(uid) }
     else { alert('Failed to add student: ' + error.message) }
   }

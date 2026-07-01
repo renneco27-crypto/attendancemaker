@@ -44,7 +44,7 @@ export default function TeacherSession({ onLogout }: Props) {
   const [attendees, setAttendees] = useState<Attendee[]>([])
   const [pendingList, setPendingList] = useState<PendingRequest[]>([])
   const [tab, setTab] = useState<Tab>('session')
-  const [newStudentName, setNewStudentName] = useState('')
+
   const [roster, setRoster] = useState<RosterEntry[]>([])
   interface PastClass { id: string; class_name: string }
   const [pastClasses, setPastClasses] = useState<PastClass[]>([])
@@ -146,24 +146,6 @@ export default function TeacherSession({ onLogout }: Props) {
   async function handleReject(requestId: string) {
     const ok = await revokeDevice(requestId)
     if (ok) fetchPending()
-  }
-
-  async function handleAddStudent() {
-    if (!newStudentName.trim()) return
-    const name = newStudentName.trim()
-    let query = supabase()
-      .from('device_registrations')
-      .select('id')
-      .eq('student_name', name)
-      .neq('status', 'revoked')
-    if (selectedSection) query = query.eq('section', selectedSection)
-    const { data: existing } = await query.maybeSingle()
-    if (existing) { alert('Student "' + name + '" is already in the roster.'); return }
-    const { error } = await supabase()
-      .from('device_registrations')
-      .insert({ student_name: name, device_identifier: '', status: 'pending', section: selectedSection || '' })
-    if (!error) { setNewStudentName(''); fetchRoster() }
-    else { alert('Failed to add student: ' + error.message) }
   }
 
   async function handleRemoveStudent(deviceRegistrationId: string) {
@@ -441,13 +423,6 @@ export default function TeacherSession({ onLogout }: Props) {
           <div style={{ padding: '20px 16px 40px' }}>
             <div style={{ fontFamily: "'Sora','Inter',sans-serif", fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>Student Roster</div>
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18 }}>Manage registered students for this class.</div>
-            <div className="roster-add">
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '.09em', marginBottom: 4 }}>Add a Student</div>
-              <div className="roster-add-row">
-                <input type="text" placeholder="Full student name" value={newStudentName} onChange={e => setNewStudentName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddStudent() }} />
-                <button className="add-btn" onClick={handleAddStudent}>Add</button>
-              </div>
-            </div>
             <div className="section-title">Registered Students</div>
             {roster.length === 0 ? (
               <div className="att-empty">No students registered yet.</div>

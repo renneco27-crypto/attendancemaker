@@ -15,9 +15,14 @@ export default function TeacherLogin({ onLogin, onBack }: Props) {
   async function handleSubmit() {
     setLoading(true)
     setError('')
-    const { error } = await supabase().auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false); return }
-    onLogin()
+    try {
+      const { error } = await supabase().auth.signInWithPassword({ email, password })
+      if (error) { setError(error.message); setLoading(false); return }
+      onLogin()
+    } catch (e: any) {
+      setError(e?.message || 'Connection error. Try again.')
+      setLoading(false)
+    }
   }
 
   return (

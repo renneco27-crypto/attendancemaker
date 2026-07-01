@@ -243,9 +243,9 @@ export default function TeacherSession({ onLogout }: Props) {
     setPhase('setup')
   }
 
-  function handleLogout() {
+  async function handleLogout() {
     cleanup()
-    supabase().auth.signOut()
+    try { await supabase().auth.signOut() } catch {}
     onLogout()
   }
 

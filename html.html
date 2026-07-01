@@ -1,0 +1,1047 @@
+bash
+
+python3 << 'PYEOF'
+with open('/tmp/bg_b64.txt') as f:
+    BG = f.read().strip()
+with open('/tmp/logo_b64.txt') as f:
+    LOGO = f.read().strip()
+
+html = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ACLC Ormoc – Attendance Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:     #0B1A2E;
+  --navy2:    #132340;
+  --gold:     #C9922A;
+  --gold-lt:  #E8B44A;
+  --green:    #1A6B3C;
+  --green2:   #22874C;
+  --green-lt: #2BA05A;
+  --white:    #FFFFFF;
+  --off:      #F3F6FA;
+  --muted:    #8A9AB5;
+  --card:     #FFFFFF;
+  --red:      #D40000;
+  --red-bg:   #FF0000;
+  --red-lt:   #FDEAEA;
+  --orange:   #E07820;
+  --border:   #E4EAF3;
+  --text:     #1A243A;
+  --sub:      #5A6880;
+}
+html, body { height:100%; font-family:'Inter',sans-serif; background:#EEF2F9; color:var(--text); max-width:480px; margin:0 auto; }
+
+/* SCREENS */
+.screen { display:none; min-height:100vh; flex-direction:column; }
+.screen.active { display:flex; }
+
+/* ── TOP BAR (persistent logo) ── */
+.top-bar {
+  background:var(--white); padding:48px 16px 14px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:20;
+}
+.tb-logo { display:flex; align-items:center; gap:9px; }
+.tb-logo-img {
+  width:36px; height:36px; border-radius:9px; overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,.18); flex-shrink:0;
+  animation:logoFloat 3s ease-in-out infinite;
+}
+@keyframes logoFloat {
+  0%,100% { transform:translateY(0); }
+  50%      { transform:translateY(-3px); }
+}
+.tb-logo-img img { width:100%; height:100%; object-fit:cover; }
+.tb-brand { font-size:13px; font-weight:700; color:var(--navy); line-height:1.2; }
+.tb-brand span { display:block; font-size:10px; font-weight:500; color:var(--green2); text-transform:uppercase; letter-spacing:.1em; }
+.tb-right { display:flex; align-items:center; gap:10px; }
+.icon-btn { background:none; border:none; cursor:pointer; color:var(--sub); font-size:20px; padding:4px; position:relative; }
+.badge { position:absolute; top:2px; right:2px; width:8px; height:8px; background:var(--red); border-radius:50%; border:2px solid #fff; }
+.avatar { width:34px; height:34px; border-radius:50%; background:var(--navy); color:var(--gold-lt); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  display:block; width:100%; padding:16px;
+  background:linear-gradient(135deg,var(--green2),var(--green-lt));
+  color:#fff; font-family:'Inter',sans-serif; font-size:16px; font-weight:700;
+  border:none; border-radius:14px; cursor:pointer;
+  box-shadow:0 8px 24px rgba(26,107,60,.35);
+  transition:transform .1s,box-shadow .1s;
+}
+.btn-primary:active { transform:scale(.97); box-shadow:0 4px 12px rgba(26,107,60,.25); }
+.btn-ghost {
+  display:block; width:100%; padding:15px;
+  background:var(--white); color:var(--text);
+  font-family:'Inter',sans-serif; font-size:15px; font-weight:600;
+  border:1.5px solid var(--border); border-radius:14px; cursor:pointer;
+}
+.btn-ghost:active { background:var(--off); }
+.btn-danger {
+  display:block; width:100%; padding:15px;
+  background:var(--red-lt); color:var(--red);
+  font-family:'Inter',sans-serif; font-size:15px; font-weight:700;
+  border:1.5px solid #f5c0c0; border-radius:14px; cursor:pointer;
+}
+.back-bar {
+  background:none; border:none; color:rgba(255,255,255,.55);
+  font-family:'Inter',sans-serif; font-size:14px; font-weight:600;
+  cursor:pointer; display:flex; align-items:center; gap:6px; margin-bottom:22px;
+  padding:0;
+}
+label { display:block; font-size:11px; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:.09em; margin-bottom:7px; }
+input[type=text],input[type=password],input[type=email] {
+  width:100%; padding:14px 16px;
+  background:var(--off); border:1.5px solid var(--border);
+  border-radius:12px; font-family:'Inter',sans-serif; font-size:15px; color:var(--text);
+  outline:none; transition:border-color .15s;
+}
+input:focus { border-color:var(--green2); background:#fff; }
+.field { margin-bottom:18px; }
+.scroll-body { flex:1; overflow-y:auto; padding:20px 16px 48px; }
+
+/* ── HOME ── */
+#home { position:relative; overflow:hidden; }
+.home-bg {
+  position:absolute; inset:0; z-index:0;
+  background:url("data:image/jpeg;base64,''' + BG + '''") center/cover no-repeat;
+}
+.home-bg::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(160deg,rgba(11,26,46,.88) 0%,rgba(13,47,21,.82) 60%,rgba(11,26,46,.9) 100%);
+}
+.home-content {
+  position:relative; z-index:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:flex-end; min-height:100vh;
+  padding:0 28px 56px; text-align:center;
+}
+.logo-ring {
+  width:110px; height:110px; border-radius:50%; background:var(--white);
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 20px; overflow:hidden;
+  box-shadow:0 0 0 10px rgba(201,146,42,.18);
+  animation:logoPulse 2.8s ease-in-out infinite;
+}
+@keyframes logoPulse {
+  0%,100% { box-shadow:0 0 0 10px rgba(201,146,42,.18); }
+  50%      { box-shadow:0 0 0 18px rgba(201,146,42,.08); }
+}
+.logo-ring img { width:100%; height:100%; object-fit:cover; }
+.home-uni { color:rgba(255,255,255,.75); font-size:12px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; line-height:1.6; margin-bottom:3px; }
+.home-college { color:var(--gold-lt); font-size:11px; letter-spacing:.18em; text-transform:uppercase; margin-bottom:26px; }
+.home-title {
+  font-family:'Sora',sans-serif; color:var(--white); font-size:36px; font-weight:800; line-height:1.1; margin-bottom:12px;
+  animation:fadeUp .7s ease both;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+.home-sub { color:rgba(255,255,255,.5); font-size:14px; line-height:1.65; margin-bottom:36px; animation:fadeUp .7s .15s ease both; }
+.home-btns { width:100%; display:flex; flex-direction:column; gap:12px; animation:fadeUp .7s .25s ease both; }
+.home-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.btn-outline {
+  padding:14px; background:rgba(255,255,255,.09); backdrop-filter:blur(6px);
+  color:rgba(255,255,255,.85); font-family:'Inter',sans-serif; font-size:14px; font-weight:600;
+  border:1.5px solid rgba(255,255,255,.2); border-radius:14px; cursor:pointer;
+}
+.btn-outline:active { background:rgba(255,255,255,.18); }
+
+/* geo pill */
+.geo-pill {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+  border-radius:20px; padding:6px 14px; color:rgba(255,255,255,.65); font-size:12px;
+  margin-bottom:22px; backdrop-filter:blur(4px);
+}
+.geo-dot { width:8px; height:8px; border-radius:50%; background:#4caf50; animation:blink 1.2s infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+/* ── HERO (dark top) ── */
+.dark-hero {
+  position:relative; overflow:hidden;
+  background:linear-gradient(160deg,var(--navy) 0%,#0e2a18 100%);
+  padding:52px 24px 36px;
+}
+.dark-hero-bg {
+  position:absolute; inset:0;
+  background:url("data:image/jpeg;base64,''' + BG + '''") center/cover no-repeat; opacity:.18;
+}
+.dark-hero > * { position:relative; z-index:1; }
+
+/* ── PIN ── */
+.pin-dots { display:flex; justify-content:center; gap:18px; margin:28px 0 24px; }
+.pin-dot { width:18px; height:18px; border-radius:50%; border:2.5px solid var(--border); background:var(--off); transition:all .15s; }
+.pin-dot.filled { background:var(--green2); border-color:var(--green2); transform:scale(1.1); }
+.pin-dot.error  { background:var(--red); border-color:var(--red); animation:shake .4s ease; }
+@keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);} }
+.pin-pad { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
+.pin-key {
+  aspect-ratio:1; border-radius:16px; border:none; background:var(--off);
+  font-family:'Sora',sans-serif; font-size:24px; font-weight:700; color:var(--text);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:background .1s,transform .08s;
+}
+.pin-key:active { background:#dce6f5; transform:scale(.92); }
+.pin-key.zero { grid-column:2; }
+.pin-key.del { background:none; font-size:20px; color:var(--sub); }
+.pin-error { color:var(--red); font-size:13px; font-weight:600; text-align:center; margin-bottom:14px; min-height:20px; }
+.pin-card { background:var(--white); border-radius:24px 24px 0 0; margin-top:-1px; padding:32px 24px 48px; flex:1; }
+
+/* ── SCANNER ── */
+#scanner { background:var(--red-bg); }
+.scanner-topbar {
+  background:rgba(0,0,0,.35); padding:48px 16px 14px;
+  display:flex; align-items:center; gap:10px; backdrop-filter:blur(6px);
+  border-bottom:1px solid rgba(255,255,255,.15);
+  position:sticky; top:0; z-index:20;
+}
+.scanner-topbar .tb-logo-img { box-shadow:0 2px 8px rgba(0,0,0,.5); }
+.scanner-topbar .tb-brand { color:#fff; }
+.scanner-topbar .tb-brand span { color:rgba(255,255,255,.6); }
+.scanner-body {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:24px 24px 52px; gap:22px;
+}
+/* QR Viewport */
+.qr-viewport {
+  width:260px; height:260px; border-radius:20px; position:relative;
+  background:rgba(0,0,0,.6); overflow:hidden;
+  border:3px solid rgba(255,255,255,.25);
+  box-shadow:0 0 40px rgba(255,0,0,.5);
+}
+/* corner brackets */
+.qr-viewport::before,.qr-viewport::after,
+.qr-br::before,.qr-br::after {
+  content:''; position:absolute; width:36px; height:36px;
+  border-color:#fff; border-style:solid;
+}
+.qr-viewport::before { top:10px; left:10px; border-width:3px 0 0 3px; border-radius:4px 0 0 0; }
+.qr-viewport::after  { top:10px; right:10px; border-width:3px 3px 0 0; border-radius:0 4px 0 0; }
+.qr-br::before { bottom:10px; left:10px; border-width:0 0 3px 3px; border-radius:0 0 0 4px; }
+.qr-br::after  { bottom:10px; right:10px; border-width:0 3px 3px 0; border-radius:0 0 4px 0; }
+.scan-line {
+  position:absolute; left:20px; right:20px; height:2px;
+  background:#fff; border-radius:2px; box-shadow:0 0 12px #fff,0 0 24px rgba(255,255,255,.4);
+  animation:scanMove 2s linear infinite;
+}
+@keyframes scanMove { 0%{top:30px;} 100%{top:220px;} }
+.qr-idle-icon { color:rgba(255,255,255,.25); font-size:52px; }
+/* QR code display inside viewport */
+.qr-inner {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  animation:qrRotate 1s linear infinite;
+}
+@keyframes qrRotate { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+.qr-svg { width:180px; height:180px; }
+
+.scan-hint { color:rgba(255,255,255,.7); font-size:13px; text-align:center; line-height:1.7; max-width:240px; }
+.scanner-btns { width:100%; display:flex; flex-direction:column; gap:10px; }
+.btn-white {
+  display:block; width:100%; padding:16px;
+  background:#fff; color:var(--red); font-family:'Inter',sans-serif;
+  font-size:16px; font-weight:700; border:none; border-radius:14px; cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);
+}
+.btn-white-ghost {
+  display:block; width:100%; padding:15px;
+  background:rgba(255,255,255,.12); backdrop-filter:blur(6px);
+  color:#fff; font-family:'Inter',sans-serif; font-size:15px; font-weight:600;
+  border:1.5px solid rgba(255,255,255,.25); border-radius:14px; cursor:pointer;
+}
+/* result */
+.result-icon { width:84px; height:84px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:38px; }
+.result-icon.success { background:rgba(255,255,255,.15); border:2.5px solid #fff; animation:popIn .4s cubic-bezier(.34,1.56,.64,1); }
+.result-icon.fail    { background:rgba(0,0,0,.2); border:2.5px solid rgba(255,255,255,.5); animation:popIn .4s cubic-bezier(.34,1.56,.64,1); }
+@keyframes popIn { from{transform:scale(0);opacity:0;} to{transform:scale(1);opacity:1;} }
+.result-title { font-family:'Sora',sans-serif; font-size:22px; font-weight:800; color:#fff; text-align:center; }
+.result-sub   { color:rgba(255,255,255,.65); font-size:14px; text-align:center; max-width:240px; }
+
+/* geo check on scanner */
+.geo-check {
+  display:flex; align-items:center; gap:8px; background:rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.2); border-radius:12px; padding:10px 16px;
+  color:rgba(255,255,255,.8); font-size:13px; font-weight:600; backdrop-filter:blur(4px);
+}
+
+/* ── REGISTER ── */
+#register { background:var(--off); }
+.reg-card { background:var(--white); border-radius:24px 24px 0 0; flex:1; padding:32px 24px 48px; }
+.reg-result { text-align:center; padding:40px 0; }
+.reg-icon { font-size:56px; margin-bottom:16px; animation:popIn .4s cubic-bezier(.34,1.56,.64,1); }
+.reg-result h3 { font-family:'Sora',sans-serif; font-size:20px; font-weight:800; color:var(--text); margin-bottom:8px; }
+.reg-result p { color:var(--sub); font-size:14px; line-height:1.6; max-width:260px; margin:0 auto; }
+
+/* ── TEACHER LOGIN ── */
+#teacher-login { background:var(--off); }
+.tl-card { background:var(--white); border-radius:24px 24px 0 0; flex:1; padding:32px 24px 48px; }
+.tl-badge {
+  display:inline-flex; align-items:center; gap:6px; margin-bottom:24px;
+  background:#FEF7E8; border:1px solid #f0d9a0; border-radius:20px;
+  padding:6px 14px; font-size:12px; font-weight:700; color:var(--gold);
+  letter-spacing:.06em; text-transform:uppercase;
+}
+
+/* ── TEACHER DASHBOARD ── */
+#teacher-dash { background:var(--off); }
+.teacher-topbar {
+  background:var(--white); padding:48px 16px 0;
+  border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20;
+}
+.teacher-topbar-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.tab-btn {
+  flex:1; padding:12px 8px; background:none; border:none;
+  border-bottom:2.5px solid transparent; font-family:'Inter',sans-serif;
+  font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; text-align:center; transition:all .15s;
+}
+.tab-btn.active { color:var(--green2); border-bottom-color:var(--green2); }
+.teacher-tabs { display:flex; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+/* greet card with bg */
+.greet-card {
+  border-radius:18px; overflow:hidden; margin-bottom:18px;
+  position:relative; padding:22px 20px 20px; min-height:140px;
+}
+.greet-bg {
+  position:absolute; inset:0;
+  background:url("data:image/jpeg;base64,''' + BG + '''") center/cover no-repeat;
+}
+.greet-bg::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg,rgba(11,26,46,.9) 0%,rgba(13,47,21,.85) 100%);
+}
+.greet-content { position:relative; z-index:1; }
+.gc-sub { font-size:11px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.12em; margin-bottom:3px; }
+.gc-name { font-family:'Sora',sans-serif; font-size:20px; font-weight:800; color:#fff; margin-bottom:6px; }
+.gc-meta { font-size:12px; color:rgba(255,255,255,.45); }
+.live-badge {
+  position:absolute; top:18px; right:18px; z-index:2;
+  background:var(--red); color:#fff; font-size:10px; font-weight:800;
+  padding:4px 10px; border-radius:20px; letter-spacing:.1em;
+  display:flex; align-items:center; gap:5px;
+}
+.live-dot { width:6px; height:6px; background:#fff; border-radius:50%; animation:blink 1s infinite; }
+
+/* QR display rotating */
+.qr-display-card {
+  background:var(--card); border-radius:18px; padding:24px; margin-bottom:16px;
+  display:flex; flex-direction:column; align-items:center; gap:14px;
+}
+.qr-rotate-wrap {
+  width:180px; height:180px; display:flex; align-items:center; justify-content:center;
+  animation:qrRotate 1s linear infinite;
+}
+.qr-rotate-wrap svg { width:180px; height:180px; }
+.qr-hint { font-size:11px; color:var(--muted); font-weight:600; }
+.qr-seconds { font-size:22px; font-weight:800; color:var(--green2); font-family:'Sora',sans-serif; }
+
+/* attendance */
+.att-table-card { background:var(--card); border-radius:18px; overflow:hidden; margin-bottom:16px; }
+.att-table-head { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.att-table-head h3 { font-size:13px; font-weight:700; color:var(--text); }
+.count-badge { background:var(--green2); color:#fff; font-size:11px; font-weight:800; padding:3px 9px; border-radius:20px; }
+.att-row { padding:12px 18px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border); animation:fadeUp .3s ease; }
+.att-row:last-child { border-bottom:none; }
+.att-dot { width:8px; height:8px; border-radius:50%; background:var(--green2); flex-shrink:0; }
+.att-num { width:24px; height:24px; border-radius:50%; background:var(--off); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--muted); flex-shrink:0; }
+.att-name { flex:1; font-size:14px; font-weight:600; color:var(--text); }
+.att-time { font-size:12px; color:var(--muted); }
+.att-empty { padding:32px; text-align:center; color:var(--muted); font-size:14px; }
+
+/* chips */
+.chips-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; font-weight:700; margin-bottom:8px; }
+.class-chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.chip {
+  padding:7px 14px; border-radius:20px; border:1.5px solid var(--border);
+  background:var(--white); font-size:12px; font-weight:600; color:var(--sub);
+  cursor:pointer; transition:all .12s;
+}
+.chip.selected { background:var(--green2); border-color:var(--green2); color:#fff; }
+
+/* registrations */
+.reg-list-card { background:var(--card); border-radius:18px; overflow:hidden; margin-bottom:14px; }
+.reg-row { padding:14px 18px; border-bottom:1px solid var(--border); }
+.reg-row:last-child { border-bottom:none; }
+.reg-student-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; }
+.reg-device-id { font-size:11px; color:var(--muted); font-family:monospace; margin-bottom:2px; }
+.reg-expire { font-size:11px; color:var(--orange); font-weight:600; }
+.reg-actions { display:flex; gap:8px; margin-top:10px; }
+.approve-btn { flex:1; padding:9px; border-radius:10px; border:none; background:var(--green2); color:#fff; font-family:'Inter',sans-serif; font-size:13px; font-weight:700; cursor:pointer; }
+.reject-btn  { flex:1; padding:9px; border-radius:10px; background:var(--red-lt); color:var(--red); font-family:'Inter',sans-serif; font-size:13px; font-weight:700; border:1.5px solid #f5c0c0; cursor:pointer; }
+
+/* roster */
+.roster-add { background:var(--card); border-radius:18px; padding:18px; margin-bottom:14px; }
+.roster-add-row { display:flex; gap:10px; margin-top:8px; }
+.roster-add-row input { flex:1; margin:0; }
+.add-btn { padding:14px 18px; border-radius:12px; background:var(--green2); color:#fff; border:none; font-family:'Inter',sans-serif; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.roster-list { background:var(--card); border-radius:18px; overflow:hidden; }
+.roster-row { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.roster-row:last-child { border-bottom:none; }
+.roster-info { flex:1; }
+.roster-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; }
+.roster-date { font-size:11px; color:var(--muted); }
+.status-pill { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+.sp-approved { background:#E4F5EC; color:var(--green2); }
+.sp-pending  { background:#FEF7E8; color:var(--gold); }
+.sp-revoked  { background:var(--red-lt); color:var(--red); }
+.remove-btn { padding:7px 12px; border-radius:9px; background:var(--red-lt); color:var(--red); border:1px solid #f5c0c0; font-family:'Inter',sans-serif; font-size:12px; font-weight:700; cursor:pointer; }
+.section-title { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin:18px 0 10px; }
+
+/* section padding */
+.session-phase { padding:20px 16px 40px; }
+
+.hidden { display:none !important; }
+.mt24 { margin-top:24px; }
+
+/* geo banner */
+.geo-banner {
+  background:linear-gradient(90deg,#e8f5ec,#f3fbf6);
+  border:1px solid #b8e4c9; border-radius:12px; padding:12px 16px;
+  display:flex; align-items:center; gap:10px; margin-bottom:16px;
+  font-size:13px; font-weight:600; color:var(--green);
+}
+.geo-banner.warn { background:#FEF7E8; border-color:#f0d9a0; color:var(--gold); }
+.geo-banner.err  { background:var(--red-lt); border-color:#f5c0c0; color:var(--red); }
+</style>
+</head>
+<body>
+
+<!-- ══ HOME ══ -->
+<div class="screen active" id="home">
+  <div class="home-bg"></div>
+  <div class="home-content">
+    <div class="logo-ring">
+      <img src="data:image/jpeg;base64,''' + LOGO + '''" alt="ACLC Logo">
+    </div>
+    <div class="home-uni">ACLC College Ormoc</div>
+    <div class="home-college">College of Computer Studies</div>
+    <div class="home-title">Attendance<br>Scanner</div>
+    <div class="geo-pill"><div class="geo-dot"></div><span id="home-geo-label">Locating you…</span></div>
+    <div class="home-sub">Scan your QR code to log attendance instantly. Built for students and teachers at ACLC Ormoc.</div>
+    <div class="home-btns">
+      <button class="btn-primary" onclick="showScreen(\'pin\')">📱 I\'m a Student</button>
+      <div class="home-row">
+        <button class="btn-outline" onclick="showScreen(\'teacher-login\')">🔐 I\'m a Teacher</button>
+        <button class="btn-outline" onclick="showScreen(\'register\')">📋 Register Device</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PIN GATE ══ -->
+<div class="screen" id="pin">
+  <div class="dark-hero">
+    <div class="dark-hero-bg"></div>
+    <div class="top-bar" style="position:relative;padding:0 0 0 0;background:transparent;border:none;margin-bottom:22px;">
+      <div class="tb-logo">
+        <div class="tb-logo-img"><img src="data:image/jpeg;base64,''' + LOGO + '''" alt="ACLC"></div>
+        <div class="tb-brand" style="color:#fff;">ACLC Ormoc <span style="color:rgba(255,255,255,.5);">Attendance Scanner</span></div>
+      </div>
+      <button onclick="showScreen(\'home\')" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">← Back</button>
+    </div>
+    <h2 style="font-family:Sora,sans-serif;font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;">Enter Access Code</h2>
+    <p style="color:rgba(255,255,255,.5);font-size:14px;">4-digit PIN required to scan</p>
+  </div>
+  <div class="pin-card">
+    <div class="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pinKey(\'1\')">1</button>
+      <button class="pin-key" onclick="pinKey(\'2\')">2</button>
+      <button class="pin-key" onclick="pinKey(\'3\')">3</button>
+      <button class="pin-key" onclick="pinKey(\'4\')">4</button>
+      <button class="pin-key" onclick="pinKey(\'5\')">5</button>
+      <button class="pin-key" onclick="pinKey(\'6\')">6</button>
+      <button class="pin-key" onclick="pinKey(\'7\')">7</button>
+      <button class="pin-key" onclick="pinKey(\'8\')">8</button>
+      <button class="pin-key" onclick="pinKey(\'9\')">9</button>
+      <button class="pin-key zero" onclick="pinKey(\'0\')">0</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCANNER ══ -->
+<div class="screen" id="scanner">
+  <!-- Custom red top bar with logo -->
+  <div class="scanner-topbar">
+    <div class="tb-logo-img"><img src="data:image/jpeg;base64,''' + LOGO + '''" alt="ACLC"></div>
+    <div class="tb-brand"><span id="scanner-title" style="font-size:15px;font-weight:800;">QR Scanner</span><span>ACLC Ormoc · Attendance</span></div>
+  </div>
+
+  <!-- IDLE -->
+  <div class="scanner-body" id="scan-idle">
+    <div class="geo-check" id="scan-geo-status">📍 <span id="scan-geo-text">Checking location…</span></div>
+    <div class="qr-viewport">
+      <div class="qr-br"></div>
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;">
+        <div class="qr-idle-icon">📷</div>
+      </div>
+    </div>
+    <div class="scan-hint">Point your camera at the QR code on your teacher\'s screen. Make sure you\'re inside campus.</div>
+    <div class="scanner-btns">
+      <button class="btn-white" onclick="startScan()">▶ Start Camera</button>
+      <button class="btn-white-ghost" onclick="showScreen(\'home\')">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ACTIVE -->
+  <div class="scanner-body hidden" id="scan-active">
+    <div class="qr-viewport">
+      <div class="qr-br"></div>
+      <div class="scan-line"></div>
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;">
+        <div style="color:rgba(255,255,255,.3);font-size:36px;">🎯</div>
+      </div>
+    </div>
+    <div class="scan-hint" style="color:rgba(255,255,255,.9);">Scanning… hold steady for 2 seconds</div>
+    <div class="scanner-btns">
+      <button class="btn-white-ghost" onclick="cancelScan()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="scanner-body hidden" id="scan-success">
+    <div class="result-icon success">✅</div>
+    <div class="result-title">Attendance Recorded!</div>
+    <div class="result-sub">Your attendance has been logged at this location.</div>
+    <div class="scanner-btns">
+      <button class="btn-white" onclick="resetScanner()">Done</button>
+    </div>
+  </div>
+
+  <!-- FAIL -->
+  <div class="scanner-body hidden" id="scan-fail">
+    <div class="result-icon fail">✖</div>
+    <div class="result-title">Scan Failed</div>
+    <div class="result-sub" id="scan-fail-msg">QR code not recognized. Make sure the code is still visible.</div>
+    <div class="scanner-btns">
+      <button class="btn-white" onclick="resetScanner()">Try Again</button>
+      <button class="btn-white-ghost" onclick="showScreen(\'home\')">Back</button>
+    </div>
+  </div>
+
+  <!-- GEO BLOCKED -->
+  <div class="scanner-body hidden" id="scan-geo-fail">
+    <div class="result-icon fail">📍</div>
+    <div class="result-title">Outside Campus</div>
+    <div class="result-sub">You must be on ACLC Ormoc campus to scan attendance. Move closer and try again.</div>
+    <div class="scanner-btns">
+      <button class="btn-white" onclick="retryGeo()">Retry Location</button>
+      <button class="btn-white-ghost" onclick="showScreen(\'home\')">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REGISTER ══ -->
+<div class="screen" id="register">
+  <div class="dark-hero">
+    <div class="dark-hero-bg"></div>
+    <div class="top-bar" style="position:relative;padding:0 0 0 0;background:transparent;border:none;margin-bottom:22px;">
+      <div class="tb-logo">
+        <div class="tb-logo-img"><img src="data:image/jpeg;base64,''' + LOGO + '''" alt="ACLC"></div>
+        <div class="tb-brand" style="color:#fff;">ACLC Ormoc <span style="color:rgba(255,255,255,.5);">Attendance Scanner</span></div>
+      </div>
+      <button onclick="showScreen(\'home\')" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">← Back</button>
+    </div>
+    <h2 style="font-family:Sora,sans-serif;font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;">Register Your Device</h2>
+    <p style="color:rgba(255,255,255,.5);font-size:14px;line-height:1.6;">Submit your name to link this device. Your teacher will approve it. Unconfirmed requests expire in <strong style="color:var(--gold-lt);">3 days</strong>.</p>
+  </div>
+  <div class="reg-card">
+    <div id="reg-form">
+      <div class="field"><label>Full Name</label><input type="text" id="reg-name" placeholder="e.g. Juan Dela Cruz"></div>
+      <div class="field"><label>Student ID (optional)</label><input type="text" id="reg-id" placeholder="e.g. ACLC-2024-00123"></div>
+      <button class="btn-primary" onclick="submitReg()">Submit Request</button>
+    </div>
+    <div class="reg-result hidden" id="reg-success">
+      <div class="reg-icon">✅</div>
+      <h3>Request Sent!</h3>
+      <p>Your device has been registered. Ask your teacher to approve it. Requests expire in 3 days if not approved.</p>
+      <button class="btn-primary mt24" onclick="resetReg()">Register Another</button>
+    </div>
+    <div class="reg-result hidden" id="reg-error">
+      <div class="reg-icon">❌</div>
+      <h3>Something went wrong</h3>
+      <p>We couldn\'t register your device. Check your connection and try again.</p>
+      <button class="btn-primary mt24" onclick="resetReg()">Try Again</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEACHER LOGIN ══ -->
+<div class="screen" id="teacher-login">
+  <div class="dark-hero">
+    <div class="dark-hero-bg"></div>
+    <div class="top-bar" style="position:relative;padding:0 0 0 0;background:transparent;border:none;margin-bottom:22px;">
+      <div class="tb-logo">
+        <div class="tb-logo-img"><img src="data:image/jpeg;base64,''' + LOGO + '''" alt="ACLC"></div>
+        <div class="tb-brand" style="color:#fff;">ACLC Ormoc <span style="color:rgba(255,255,255,.5);">Attendance Scanner</span></div>
+      </div>
+      <button onclick="showScreen(\'home\')" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">← Back</button>
+    </div>
+    <h2 style="font-family:Sora,sans-serif;font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;">Teacher Login</h2>
+    <p style="color:rgba(255,255,255,.5);font-size:14px;">Sign in with your institutional account</p>
+  </div>
+  <div class="tl-card">
+    <div class="tl-badge">🔐 Staff Access Only</div>
+    <div class="field"><label>Email Address</label><input type="email" id="tl-email" placeholder="you@aclc-ormoc.edu.ph"></div>
+    <div class="field"><label>Password</label><input type="password" id="tl-pass" placeholder="Enter your password"></div>
+    <button class="btn-primary" onclick="teacherLogin()">Sign In</button>
+    <div style="text-align:center;margin-top:16px;"><span style="font-size:13px;color:var(--green2);font-weight:600;cursor:pointer;">Forgot password?</span></div>
+  </div>
+</div>
+
+<!-- ══ TEACHER DASHBOARD ══ -->
+<div class="screen" id="teacher-dash">
+  <div class="teacher-topbar">
+    <div class="teacher-topbar-row">
+      <div class="tb-logo">
+        <div class="tb-logo-img"><img src="data:image/jpeg;base64,''' + LOGO + '''" alt="ACLC"></div>
+        <div class="tb-brand">ACLC Ormoc <span>Teacher Panel</span></div>
+      </div>
+      <button onclick="teacherLogout()" style="padding:8px 14px;border-radius:10px;background:var(--red-lt);color:var(--red);border:1px solid #f5c0c0;font-family:Inter,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Logout</button>
+    </div>
+    <div class="teacher-tabs">
+      <button class="tab-btn active" onclick="switchTab(\'tab-session\',this)">Session</button>
+      <button class="tab-btn" onclick="switchTab(\'tab-registrations\',this)">Registrations</button>
+      <button class="tab-btn" onclick="switchTab(\'tab-roster\',this)">Roster</button>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding-bottom:40px;">
+
+    <!-- SESSION TAB -->
+    <div class="tab-panel active" id="tab-session">
+
+      <!-- Setup -->
+      <div class="session-phase" id="phase-setup">
+        <div class="greet-card">
+          <div class="greet-bg"></div>
+          <div class="greet-content">
+            <div class="gc-sub">Welcome back,</div>
+            <div class="gc-name">Prof. Maria Santos</div>
+            <div class="gc-meta" id="teacher-geo-meta">📍 Locating…</div>
+          </div>
+        </div>
+        <div class="chips-label">Recent Classes</div>
+        <div class="class-chips">
+          <div class="chip" onclick="selectChip(this,\'Fundamentals of Programming\')">Fundamentals of Programming</div>
+          <div class="chip" onclick="selectChip(this,\'Web Systems & Technologies\')">Web Systems</div>
+          <div class="chip" onclick="selectChip(this,\'Database Management\')">Database Management</div>
+        </div>
+        <div class="field"><label>Class Name</label><input type="text" id="class-name-input" placeholder="e.g. Data Structures — Block A"></div>
+        <button class="btn-primary" onclick="startSession()">▶ Start Session</button>
+      </div>
+
+      <!-- Active -->
+      <div class="session-phase hidden" id="phase-active">
+        <div class="greet-card" style="margin-bottom:18px;">
+          <div class="greet-bg"></div>
+          <div class="greet-content">
+            <div class="gc-sub">Currently Running</div>
+            <div class="gc-name" id="active-class-name">—</div>
+            <div class="gc-meta" id="active-geo-meta">📍 —</div>
+          </div>
+          <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+        </div>
+
+        <div class="qr-display-card">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">Show this QR to students</div>
+          <div class="qr-rotate-wrap" id="qr-display">
+            <!-- QR SVG injected by JS -->
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="qr-hint">Refreshes in</div>
+            <div class="qr-seconds" id="qr-countdown">1s</div>
+          </div>
+        </div>
+
+        <div class="att-table-card">
+          <div class="att-table-head">
+            <h3>Checked In</h3>
+            <span class="count-badge" id="att-count">0</span>
+          </div>
+          <div id="att-list"><div class="att-empty">Waiting for students to scan…</div></div>
+        </div>
+        <button class="btn-danger" onclick="endSession()">■ End Session</button>
+      </div>
+
+      <!-- Ended -->
+      <div class="session-phase hidden" id="phase-ended">
+        <div style="text-align:center;padding:20px 0 24px;">
+          <div style="font-size:48px;margin-bottom:12px;animation:popIn .4s ease;">📊</div>
+          <div style="font-family:Sora,sans-serif;font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px;">Session Ended</div>
+          <div style="font-size:13px;color:var(--muted);" id="ended-summary">0 students attended</div>
+        </div>
+        <div class="att-table-card" id="ended-table" style="margin-bottom:16px;"></div>
+        <button class="btn-primary" onclick="newSession()">+ New Session</button>
+      </div>
+    </div>
+
+    <!-- REGISTRATIONS TAB -->
+    <div class="tab-panel" id="tab-registrations">
+      <div style="padding:20px 16px 40px;">
+        <div style="font-family:Sora,sans-serif;font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px;">Pending Registrations</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Approve or reject student device requests.</div>
+        <div class="geo-banner warn" style="margin-bottom:16px;">⚠️ Unconfirmed requests are <strong>auto-deleted after 3 days</strong> — see backend spec.</div>
+        <div class="reg-list-card" id="pending-list">
+          <div class="reg-row">
+            <div class="reg-student-name">Ana Reyes</div>
+            <div class="reg-device-id">Device: d4f2a9c1-ormoc</div>
+            <div class="reg-expire">⏰ Expires in 2 days</div>
+            <div class="reg-actions">
+              <button class="approve-btn" onclick="approveReg(this)">✓ Approve</button>
+              <button class="reject-btn" onclick="rejectReg(this)">✖ Reject</button>
+            </div>
+          </div>
+          <div class="reg-row">
+            <div class="reg-student-name">Carlo Mendez</div>
+            <div class="reg-device-id">Device: b8e1f305-ormoc</div>
+            <div class="reg-expire">⏰ Expires in 1 day</div>
+            <div class="reg-actions">
+              <button class="approve-btn" onclick="approveReg(this)">✓ Approve</button>
+              <button class="reject-btn" onclick="rejectReg(this)">✖ Reject</button>
+            </div>
+          </div>
+          <div class="reg-row">
+            <div class="reg-student-name">Riza Flores</div>
+            <div class="reg-device-id">Device: 9c3e1a02-ormoc</div>
+            <div class="reg-expire" style="color:var(--red);">🔴 Expires today — act now</div>
+            <div class="reg-actions">
+              <button class="approve-btn" onclick="approveReg(this)">✓ Approve</button>
+              <button class="reject-btn" onclick="rejectReg(this)">✖ Reject</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROSTER TAB -->
+    <div class="tab-panel" id="tab-roster">
+      <div style="padding:20px 16px 40px;">
+        <div style="font-family:Sora,sans-serif;font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px;">Student Roster</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:18px;">Manage registered students for this class.</div>
+        <div class="roster-add">
+          <div style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.09em;margin-bottom:4px;">Add a Student</div>
+          <div class="roster-add-row">
+            <input type="text" id="roster-input" placeholder="Full student name">
+            <button class="add-btn" onclick="addStudent()">Add</button>
+          </div>
+        </div>
+        <div class="section-title">Registered Students</div>
+        <div class="roster-list" id="roster-list">
+          <div class="roster-row">
+            <div class="roster-info"><div class="roster-name">Juan Dela Cruz</div><div class="roster-date">Registered June 28, 2026</div></div>
+            <span class="status-pill sp-approved">Approved</span>
+            <button class="remove-btn" onclick="removeStudent(this)">Remove</button>
+          </div>
+          <div class="roster-row">
+            <div class="roster-info"><div class="roster-name">Maria Garcia</div><div class="roster-date">Registered June 29, 2026</div></div>
+            <span class="status-pill sp-approved">Approved</span>
+            <button class="remove-btn" onclick="removeStudent(this)">Remove</button>
+          </div>
+          <div class="roster-row">
+            <div class="roster-info"><div class="roster-name">Ben Torres</div><div class="roster-date">Registered July 1, 2026</div></div>
+            <span class="status-pill sp-pending">Pending</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── NAVIGATION ──
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ── GEOLOCATION ──
+// ACLC Ormoc approximate coords — replace with exact in production
+const CAMPUS_LAT = 11.0027;
+const CAMPUS_LNG = 124.6075;
+const CAMPUS_RADIUS_M = 300; // 300m radius
+
+let userLat = null, userLng = null, geoReady = false, geoAllowed = false;
+
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371000,toR=Math.PI/180;
+  const dLat=(lat2-lat1)*toR,dLng=(lng2-lng1)*toR;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*toR)*Math.cos(lat2*toR)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function getGeo(onSuccess,onFail){
+  if(!navigator.geolocation){ onFail('Geolocation not supported'); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      userLat=pos.coords.latitude; userLng=pos.coords.longitude;
+      const dist=haversine(userLat,userLng,CAMPUS_LAT,CAMPUS_LNG);
+      geoReady=true; geoAllowed=dist<=CAMPUS_RADIUS_M;
+      onSuccess(dist);
+    },
+    err=>{ geoReady=true; geoAllowed=false; onFail(err.message); },
+    {enableHighAccuracy:true,timeout:8000}
+  );
+}
+
+// Home geo pill
+getGeo(
+  dist=>{
+    const label = dist<=CAMPUS_RADIUS_M
+      ? `📍 On campus (${Math.round(dist)}m from gate)`
+      : `📍 Off campus — ${Math.round(dist)}m away`;
+    document.getElementById('home-geo-label').textContent=label;
+  },
+  err=>{ document.getElementById('home-geo-label').textContent='📍 Location unavailable'; }
+);
+
+// Teacher geo meta
+function updateTeacherGeo(){
+  getGeo(
+    dist=>{
+      const el=document.getElementById('teacher-geo-meta');
+      if(el) el.textContent=dist<=CAMPUS_RADIUS_M
+        ? `📍 On campus · ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`
+        : `⚠️ Off campus (${Math.round(dist)}m) · ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`;
+    },
+    _=>{
+      const el=document.getElementById('teacher-geo-meta');
+      if(el) el.textContent='📍 Location unavailable';
+    }
+  );
+}
+
+// ── PIN GATE ──
+let pinVal='';
+const CORRECT_PIN='1234';
+function pinKey(d){ if(pinVal.length>=4)return; pinVal+=d; updatePinDots(); if(pinVal.length===4)setTimeout(checkPin,120); }
+function pinDel(){ pinVal=pinVal.slice(0,-1); document.getElementById('pin-error').textContent=''; updatePinDots(false); }
+function updatePinDots(error=false){
+  for(let i=0;i<4;i++){
+    const d=document.getElementById('pd'+i);
+    d.className='pin-dot';
+    if(error)d.classList.add('error');
+    else if(i<pinVal.length)d.classList.add('filled');
+  }
+}
+function checkPin(){
+  if(pinVal===CORRECT_PIN){
+    showScreen('scanner');
+    pinVal=''; updatePinDots();
+    initScannerGeo();
+  } else {
+    document.getElementById('pin-error').textContent='Incorrect PIN. Try again.';
+    updatePinDots(true);
+    setTimeout(()=>{ pinVal=''; updatePinDots(); },900);
+  }
+}
+
+// ── SCANNER GEO ──
+function initScannerGeo(){
+  document.getElementById('scan-geo-text').textContent='Checking your location…';
+  showScanState('scan-idle');
+  getGeo(
+    dist=>{
+      if(dist<=CAMPUS_RADIUS_M){
+        document.getElementById('scan-geo-text').textContent=`✅ On campus (${Math.round(dist)}m from gate)`;
+      } else {
+        document.getElementById('scan-geo-text').textContent=`❌ You are ${Math.round(dist)}m off campus`;
+        setTimeout(()=>showScanState('scan-geo-fail'),800);
+      }
+    },
+    err=>{ document.getElementById('scan-geo-text').textContent='⚠️ Could not verify location'; }
+  );
+}
+function retryGeo(){ initScannerGeo(); }
+
+// ── SCANNER ──
+let scanTimer=null;
+function showScanState(id){
+  ['scan-idle','scan-active','scan-success','scan-fail','scan-geo-fail'].forEach(s=>{
+    document.getElementById(s).classList.add('hidden');
+  });
+  document.getElementById(id).classList.remove('hidden');
+}
+function startScan(){
+  showScanState('scan-active');
+  document.getElementById('scanner-title').textContent='Scanning…';
+  scanTimer=setTimeout(()=>{
+    const ok=Math.random()>0.25;
+    if(ok){ document.getElementById('scanner-title').textContent='Attendance Recorded!'; showScanState('scan-success'); }
+    else   { document.getElementById('scanner-title').textContent='Scan Failed'; showScanState('scan-fail'); }
+  },2000);
+}
+function cancelScan(){ clearTimeout(scanTimer); document.getElementById('scanner-title').textContent='QR Scanner'; showScanState('scan-idle'); }
+function resetScanner(){ document.getElementById('scanner-title').textContent='QR Scanner'; showScanState('scan-idle'); }
+
+// ── REGISTER ──
+function submitReg(){
+  const name=document.getElementById('reg-name').value.trim();
+  if(!name){ document.getElementById('reg-name').focus(); return; }
+  document.getElementById('reg-form').classList.add('hidden');
+  document.getElementById('reg-success').classList.remove('hidden');
+}
+function resetReg(){
+  document.getElementById('reg-form').classList.remove('hidden');
+  document.getElementById('reg-success').classList.add('hidden');
+  document.getElementById('reg-error').classList.add('hidden');
+  document.getElementById('reg-name').value='';
+  document.getElementById('reg-id').value='';
+}
+
+// ── TEACHER ──
+function teacherLogin(){ showScreen('teacher-dash'); updateTeacherGeo(); }
+function teacherLogout(){ clearInterval(qrInterval); clearInterval(demoInterval); showScreen('home'); }
+
+function switchTab(panelId,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(panelId).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── QR CODE GENERATOR (simple SVG pattern) ──
+let qrSeed=0;
+function makeQR(seed){
+  // Generate a simple but visually varied QR-like SVG pattern
+  const size=180,cells=10,cell=size/cells;
+  let rects='';
+  const r=new Array(cells*cells).fill(0).map((_,i)=>{
+    const x=i%cells,y=Math.floor(i/cells);
+    // deterministic but seed-varied fill
+    const h=(seed*7+x*13+y*17+x*y)%31;
+    return h<16?`<rect x="${x*cell}" y="${y*cell}" width="${cell}" height="${cell}" fill="#1A243A"/>`:'';
+  });
+  // finder patterns (always same – corners)
+  const fp=(ox,oy)=>`
+    <rect x="${ox}" y="${oy}" width="${cell*3}" height="${cell*3}" fill="#1A243A"/>
+    <rect x="${ox+cell*.5}" y="${oy+cell*.5}" width="${cell*2}" height="${cell*2}" fill="#fff"/>
+    <rect x="${ox+cell}" y="${oy+cell}" width="${cell}" height="${cell}" fill="#1A243A"/>
+  `;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${size}" height="${size}" fill="#fff" rx="8"/>
+    ${r.join('')}
+    ${fp(0,0)}${fp(size-cell*3,0)}${fp(0,size-cell*3)}
+  </svg>`;
+}
+
+// ── SESSION ──
+let sessionStudents=[];
+let qrInterval=null,demoInterval=null,qrCountdown=1;
+
+function selectChip(el,name){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('class-name-input').value=name;
+}
+
+function startSession(){
+  const name=document.getElementById('class-name-input').value.trim();
+  if(!name){ document.getElementById('class-name-input').focus(); return; }
+  document.getElementById('active-class-name').textContent=name;
+  // update geo meta
+  getGeo(
+    dist=>{ document.getElementById('active-geo-meta').textContent=`📍 ${dist<=CAMPUS_RADIUS_M?'On campus':'Off campus ('+Math.round(dist)+'m)'} · ${new Date().toLocaleTimeString()}`; },
+    _=>{ document.getElementById('active-geo-meta').textContent='📍 Location unavailable'; }
+  );
+  sessionStudents=[];
+  renderAttList();
+  document.getElementById('phase-setup').classList.add('hidden');
+  document.getElementById('phase-active').classList.remove('hidden');
+
+  // QR rotating every 1 second
+  qrSeed=0;
+  document.getElementById('qr-display').innerHTML=makeQR(qrSeed);
+  qrCountdown=1;
+  document.getElementById('qr-countdown').textContent='1s';
+  qrInterval=setInterval(()=>{
+    qrSeed++;
+    document.getElementById('qr-display').innerHTML=makeQR(qrSeed);
+    document.getElementById('qr-countdown').textContent='1s';
+  },1000);
+
+  // Demo students checking in
+  const demo=['Juan Dela Cruz','Maria Garcia','Carlo Mendez','Ana Reyes','Ben Torres'];
+  let idx=0;
+  demoInterval=setInterval(()=>{
+    if(idx<demo.length){
+      const t=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      sessionStudents.push({name:demo[idx],time:t});
+      renderAttList(); idx++;
+    } else { clearInterval(demoInterval); }
+  },2200);
+}
+
+function renderAttList(){
+  const list=document.getElementById('att-list');
+  document.getElementById('att-count').textContent=sessionStudents.length;
+  if(sessionStudents.length===0){
+    list.innerHTML='<div class="att-empty">Waiting for students to scan…</div>'; return;
+  }
+  list.innerHTML=sessionStudents.map((s,i)=>`
+    <div class="att-row">
+      <div class="att-dot"></div>
+      <div class="att-num">${i+1}</div>
+      <div class="att-name">${s.name}</div>
+      <div class="att-time">${s.time}</div>
+    </div>`).join('');
+}
+
+function endSession(){
+  clearInterval(qrInterval); clearInterval(demoInterval);
+  document.getElementById('phase-active').classList.add('hidden');
+  document.getElementById('phase-ended').classList.remove('hidden');
+  document.getElementById('ended-summary').textContent=sessionStudents.length+' student'+(sessionStudents.length!==1?'s':'')+' attended';
+  const t=document.getElementById('ended-table');
+  t.innerHTML=`<div class="att-table-head"><h3>Final Attendance</h3><span class="count-badge">${sessionStudents.length}</span></div>`+
+    (sessionStudents.length===0?'<div class="att-empty">No students checked in.</div>':
+    sessionStudents.map((s,i)=>`<div class="att-row"><div class="att-num">${i+1}</div><div class="att-name">${s.name}</div><div class="att-time">${s.time}</div></div>`).join(''));
+}
+function newSession(){
+  document.getElementById('phase-ended').classList.add('hidden');
+  document.getElementById('phase-setup').classList.remove('hidden');
+  document.getElementById('class-name-input').value='';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+}
+
+// ── REGISTRATIONS ──
+function approveReg(btn){ btn.closest('.reg-row').querySelector('.reg-actions').innerHTML='<span class="status-pill sp-approved" style="padding:6px 14px;">✓ Approved</span>'; }
+function rejectReg(btn){ btn.closest('.reg-row').querySelector('.reg-actions').innerHTML='<span class="status-pill sp-revoked" style="padding:6px 14px;">✖ Rejected</span>'; }
+
+// ── ROSTER ──
+function addStudent(){
+  const val=document.getElementById('roster-input').value.trim();
+  if(!val)return;
+  const list=document.getElementById('roster-list');
+  const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const row=document.createElement('div'); row.className='roster-row';
+  row.innerHTML=`<div class="roster-info"><div class="roster-name">${val}</div><div class="roster-date">Registered ${today}</div></div><span class="status-pill sp-pending">Pending</span>`;
+  list.appendChild(row);
+  document.getElementById('roster-input').value='';
+}
+function removeStudent(btn){ btn.closest('.roster-row').remove(); }
+</script>
+</body>
+</html>'''
+
+with open('/mnt/user-data/outputs/aclc-scanner.html','w') as f:
+    f.write(html)
+print('HTML done, size:', len(html))
+PYEOF
+Output
+
+HTML done, size: 2049471

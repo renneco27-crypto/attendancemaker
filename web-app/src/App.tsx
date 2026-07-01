@@ -11,36 +11,31 @@ type Phase = 'home' | 'pin' | 'scanner' | 'teacher-login' | 'teacher' | 'registe
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>('home')
-  const [pinPassed, setPinPassed] = useState(false)
+  const [pinValue, setPinValue] = useState('')
 
-  function handleRoleSelect(role: 'student' | 'teacher' | 'register') {
-    if (role === 'student') setPhase('pin')
-    else if (role === 'teacher') setPhase('teacher-login')
-    else setPhase('register')
-  }
-
-  function handlePinSuccess() {
-    setPinPassed(true)
-    setPhase('scanner')
-  }
-
-  function handleTeacherLogin() {
-    setPhase('teacher')
-  }
-
-  function handleBack() {
-    setPinPassed(false)
-    setPhase('home')
-  }
+  function go(id: Phase) { setPhase(id); window.scrollTo(0, 0) }
+  function handlePinSuccess(pin: string) { setPinValue(pin); setPhase('scanner') }
 
   return (
     <div className="app">
-      {phase === 'home' && <HomeScreen onSelectRole={handleRoleSelect} />}
-      {phase === 'pin' && <PINGate onSuccess={handlePinSuccess} onBack={handleBack} />}
-      {phase === 'scanner' && <StudentScanner onBack={handleBack} pinPassed={pinPassed} />}
-      {phase === 'teacher-login' && <TeacherLogin onLogin={handleTeacherLogin} onBack={handleBack} />}
-      {phase === 'teacher' && <TeacherSession onLogout={handleBack} />}
-      {phase === 'register' && <RegisterDevice onBack={handleBack} />}
+      <div className={`screen ${phase === 'home' ? 'active' : ''}`} id="home">
+        <HomeScreen onSelectRole={(role) => go(role === 'student' ? 'pin' : role === 'teacher' ? 'teacher-login' : 'register')} />
+      </div>
+      <div className={`screen ${phase === 'pin' ? 'active' : ''}`} id="pin">
+        <PINGate onSuccess={handlePinSuccess} onBack={() => go('home')} />
+      </div>
+      <div className={`screen ${phase === 'scanner' ? 'active' : ''}`} id="scanner">
+        <StudentScanner onBack={() => go('home')} pinValue={pinValue} />
+      </div>
+      <div className={`screen ${phase === 'register' ? 'active' : ''}`} id="register">
+        <RegisterDevice onBack={() => go('home')} />
+      </div>
+      <div className={`screen ${phase === 'teacher-login' ? 'active' : ''}`} id="teacher-login">
+        <TeacherLogin onLogin={() => go('teacher')} onBack={() => go('home')} />
+      </div>
+      <div className={`screen ${phase === 'teacher' ? 'active' : ''}`} id="teacher-dash">
+        <TeacherSession onLogout={() => go('home')} />
+      </div>
     </div>
   )
 }

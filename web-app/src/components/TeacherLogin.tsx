@@ -12,48 +12,35 @@ export default function TeacherLogin({ onLogin, onBack }: Props) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSubmit() {
     setLoading(true)
     setError('')
-
     const { error } = await supabase().auth.signInWithPassword({ email, password })
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
+    if (error) { setError(error.message); setLoading(false); return }
     onLogin()
   }
 
   return (
-    <div className="screen">
-      <h1 className="title">Teacher Login</h1>
-      <form onSubmit={handleSubmit} className="pin-form" style={{ maxWidth: 320 }}>
-        <input
-          className="text-input"
-          type="email"
-          placeholder="teacher@school.edu"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-        />
-        <input
-          className="text-input"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-        />
-        {error && <p className="error-text">{error}</p>}
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? 'Signing in...' : 'Sign In'}
-        </button>
-      </form>
-      <button className="btn btn-ghost" onClick={onBack}>Back</button>
-    </div>
+    <>
+      <div className="dark-hero">
+        <div className="dark-hero-bg" />
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+          <div className="tb-logo">
+            <div className="tb-logo-img"><div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gold)', color: '#fff', fontSize: 18, fontWeight: 800 }}>A</div></div>
+            <div className="tb-brand" style={{ color: '#fff' }}>ACLC Ormoc <span style={{ color: 'rgba(255,255,255,.5)' }}>Attendance Scanner</span></div>
+          </div>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>← Back</button>
+        </div>
+        <h2 style={{ fontFamily: "'Sora','Inter',sans-serif", fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 6 }}>Teacher Login</h2>
+        <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 14 }}>Sign in with your institutional account</p>
+      </div>
+      <div className="tl-card">
+        <div className="tl-badge">🔐 Staff Access Only</div>
+        <div className="field"><label>Email Address</label><input type="email" placeholder="you@aclc-ormoc.edu.ph" value={email} onChange={e => setEmail(e.target.value)} /></div>
+        <div className="field"><label>Password</label><input type="password" placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }} /></div>
+        {error && <p className="pin-error">{error}</p>}
+        <button className="btn-primary" onClick={handleSubmit} disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</button>
+      </div>
+    </>
   )
 }

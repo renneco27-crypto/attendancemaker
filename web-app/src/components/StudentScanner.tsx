@@ -1,45 +1,56 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
-import { submitAttendance, CapturedToken } from '../services/api'
+import { validateScan } from '../services/api'
 import { getDeviceId } from '../utils/device'
 
 interface Props {
   onBack: () => void
-  pinPassed: boolean
+  pinValue: string
 }
 
-const CAPTURE_WINDOW_MS = 2000
-const MIN_TOKENS = 2
+type ScanPhase = 'idle' | 'scanning' | 'success' | 'fail' | 'geo-fail'
+
 const SCANNER_ID = 'qr-scanner'
 
-type Phase = 'ready' | 'scanning' | 'capturing' | 'submitting' | 'success' | 'failed'
-
-function failureMessage(reason: string | null): string {
-  switch (reason) {
-    case 'DEVICE_NOT_FOUND': return 'Device not registered. Contact your teacher.'
-    case 'DEVICE_INACTIVE': return 'This device has been deactivated.'
-    case 'INSUFFICIENT_TOKENS': return 'Could not capture enough QR codes. Try again.'
-    case 'INVALID_TOKENS': return 'Invalid QR codes detected. Try again.'
-    case 'SEQUENCE_ERROR': return 'QR codes out of sequence. Try again.'
-    case 'TIMING_DRIFT': return 'Timing error. Try again.'
-    case 'ALREADY_CHECKED_IN': return 'You have already checked in for this session.'
-    case 'BIOMETRIC_FAILED': return 'Access verification failed. Restart the app.'
-    case 'SERVER_ERROR': return 'Server error. Try again.'
-    default: return 'An unknown error occurred. Try again.'
-  }
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000, toR = Math.PI / 180
+  const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-export default function StudentScanner({ onBack, pinPassed }: Props) {
-  const [phase, setPhase] = useState<Phase>('ready')
+export default function StudentScanner({ onBack, pinValue }: Props) {
+  const [scanPhase, setScanPhase] = useState<ScanPhase>('idle')
   const [errorMsg, setErrorMsg] = useState('')
-  const [tokensCaptured, setTokensCaptured] = useState(0)
+  const [geoText, setGeoText] = useState('Checking location…')
   const scannerRef = useRef<Html5Qrcode | null>(null)
-  const capturedRef = useRef<CapturedToken[]>([])
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const finishingRef = useRef(false)
 
-  async function startScanner() {
-    setPhase('scanning')
+  useEffect(() => {
+    checkGeo()
+    return () => { stopScanner() }
+  }, [])
+
+  function checkGeo() {
+    if (!navigator.geolocation) { setGeoText('⚠️ Could not verify location'); return }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const dist = haversine(pos.coords.latitude, pos.coords.longitude, 11.0027, 124.6075)
+        if (dist <= 300) {
+          setGeoText(`✅ On campus (${Math.round(dist)}m from gate)`)
+        } else {
+          setGeoText(`❌ You are ${Math.round(dist)}m off campus`)
+          setTimeout(() => setScanPhase('geo-fail'), 800)
+        }
+      },
+      () => setGeoText('⚠️ Could not verify location'),
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  }
+
+  async function startScan() {
+    setScanPhase('scanning')
+    finishingRef.current = false
     const scanner = new Html5Qrcode(SCANNER_ID)
     scannerRef.current = scanner
 
@@ -50,56 +61,57 @@ export default function StudentScanner({ onBack, pinPassed }: Props) {
         onDecoded,
         () => {}
       )
-    } catch (err: any) {
+    } catch {
       setErrorMsg('Camera access denied. Grant camera permission and try again.')
-      setPhase('failed')
+      setScanPhase('fail')
     }
   }
 
-  function onDecoded(text: string) {
-    if (finishingRef.current) return
-
-    try {
-      const data = JSON.parse(text)
-      const token: CapturedToken = {
-        token: data.t,
-        sequence_index: data.i,
-        capture_timestamp: Date.now(),
-      }
-
-      if (capturedRef.current.some(t => t.token === token.token)) return
-      capturedRef.current.push(token)
-      setTokensCaptured(capturedRef.current.length)
-
-      if (capturedRef.current.length === 1) {
-        setPhase('capturing')
-        timerRef.current = setTimeout(finishCapture, CAPTURE_WINDOW_MS)
-      }
-    } catch {}
-  }
-
-  async function finishCapture() {
+  async function onDecoded(text: string) {
     if (finishingRef.current) return
     finishingRef.current = true
 
     await stopScanner()
-    setPhase('submitting')
+    setScanPhase('success')
 
-    const tokens = capturedRef.current
-    if (tokens.length < MIN_TOKENS) {
-      setErrorMsg(`Only ${tokens.length} token(s) captured. Need at least ${MIN_TOKENS}.`)
-      setPhase('failed')
+    let sessionId = '', rotationKey = ''
+    try {
+      const data = JSON.parse(text)
+      sessionId = data.session_id || data.s
+      rotationKey = data.rotation_key || data.t
+    } catch {
+      setErrorMsg('Invalid QR code. Try again.')
+      setScanPhase('fail')
       return
     }
 
-    const sorted = tokens.sort((a, b) => a.capture_timestamp - b.capture_timestamp)
-    const result = await submitAttendance(getDeviceId(), sorted, pinPassed)
+    if (!sessionId || !rotationKey) {
+      setErrorMsg('Invalid QR code format. Try again.')
+      setScanPhase('fail')
+      return
+    }
+
+    const result = await validateScan({
+      session_id: sessionId,
+      rotation_key: rotationKey,
+      student_device_id: getDeviceId(),
+      pin: pinValue,
+    })
 
     if (result.success) {
-      setPhase('success')
+      setScanPhase('success')
     } else {
-      setPhase('failed')
-      setErrorMsg(failureMessage(result.reason))
+      const msg = result.error === 'Device not registered' ? 'Device not registered. Contact your teacher.'
+        : result.error === 'Device not approved' ? 'Your device hasn\'t been approved yet.'
+        : result.error === 'Session has ended' ? 'Session has ended.'
+        : result.error === 'Session expired' ? 'Session expired.'
+        : result.error === 'QR code expired, please rescan' ? 'QR code expired, please rescan.'
+        : result.error === 'Incorrect PIN' ? 'Incorrect PIN.'
+        : result.error === 'Already checked in' ? 'You have already checked in for this session.'
+        : result.error === 'Session not found' ? 'Session not found.'
+        : result.error || 'Scan failed. Try again.'
+      setErrorMsg(msg)
+      setScanPhase('fail')
     }
   }
 
@@ -112,79 +124,93 @@ export default function StudentScanner({ onBack, pinPassed }: Props) {
     } catch {}
   }
 
-  function handleRetry() {
-    capturedRef.current = []
+  function resetScanner() {
     finishingRef.current = false
-    setTokensCaptured(0)
     setErrorMsg('')
-    setPhase('ready')
-  }
-
-  function handleDone() {
-    stopScanner()
-    onBack()
-  }
-
-  useEffect(() => {
-    return () => { stopScanner(); if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [])
-
-  // -------- RENDER --------
-
-  if (phase === 'ready') {
-    return (
-      <div className="screen scanner-screen">
-        <h1 className="title">QR Scanner</h1>
-        <p className="subtitle">Point camera at the teacher's QR code</p>
-        <button className="btn btn-primary" onClick={startScanner}>
-          Start Camera
-        </button>
-        <button className="btn btn-ghost" onClick={onBack}>Back</button>
-      </div>
-    )
-  }
-
-  if (phase === 'scanning' || phase === 'capturing') {
-    return (
-      <div className="screen scanner-screen">
-        <div className="scanner-container" style={{ borderColor: phase === 'capturing' ? '#ff0000' : '#ccc' }}>
-          <div id={SCANNER_ID} />
-        </div>
-        <p className="scanner-status">
-          {phase === 'capturing' ? 'Capturing QR codes...' : 'Scanning for QR code...'}
-        </p>
-        <p className="token-count">Tokens captured: {tokensCaptured}</p>
-        <button className="btn btn-ghost" onClick={() => { stopScanner(); onBack() }}>Cancel</button>
-      </div>
-    )
-  }
-
-  if (phase === 'submitting') {
-    return (
-      <div className="screen scanner-screen">
-        <div className="spinner" />
-        <p className="subtitle">Verifying attendance...</p>
-      </div>
-    )
-  }
-
-  if (phase === 'success') {
-    return (
-      <div className="screen scanner-screen">
-        <div className="icon-success">&#10003;</div>
-        <h1 className="title" style={{ color: '#16a34a' }}>Attendance Recorded!</h1>
-        <p className="subtitle">You have been marked present.</p>
-        <button className="btn btn-ghost" onClick={handleDone}>Done</button>
-      </div>
-    )
+    setScanPhase('idle')
+    checkGeo()
   }
 
   return (
-    <div className="screen scanner-screen">
-      <div className="icon-error">&#10007;</div>
-      <p className="error-text">{errorMsg}</p>
-      <button className="btn btn-primary" onClick={handleRetry}>Try Again</button>
-      <button className="btn btn-ghost" onClick={handleDone}>Cancel</button>
-    </div>
+    <>
+      <div className="scanner-topbar">
+        <div className="tb-logo-img"><div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gold)', color: '#fff', fontSize: 18, fontWeight: 800 }}>A</div></div>
+        <div className="tb-brand" style={{ fontSize: 15, fontWeight: 800 }}>
+          {scanPhase === 'success' ? 'Attendance Recorded!' : scanPhase === 'fail' ? 'Scan Failed' : 'QR Scanner'}
+          <span>ACLC Ormoc · Attendance</span>
+        </div>
+      </div>
+
+      {/* IDLE */}
+      {scanPhase === 'idle' && (
+        <div className="scanner-body">
+          <div className="geo-check">📍 <span>{geoText}</span></div>
+          <div className="qr-viewport">
+            <div className="qr-br" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 52 }}>📷</div>
+            </div>
+          </div>
+          <div className="scan-hint">Point your camera at the QR code on your teacher's screen. Make sure you're inside campus.</div>
+          <div className="scanner-btns">
+            <button className="btn-white" onClick={startScan}>▶ Start Camera</button>
+            <button className="btn-white-ghost" onClick={onBack}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* SCANNING */}
+      {scanPhase === 'scanning' && (
+        <div className="scanner-body">
+          <div className="qr-viewport">
+            <div className="qr-br" />
+            <div className="scan-line" />
+            <div id={SCANNER_ID} style={{ width: '100%', height: '100%' }} />
+          </div>
+          <div className="scan-hint" style={{ color: 'rgba(255,255,255,.9)' }}>Scanning…</div>
+          <div className="scanner-btns">
+            <button className="btn-white-ghost" onClick={() => { stopScanner(); resetScanner() }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS */}
+      {scanPhase === 'success' && (
+        <div className="scanner-body">
+          <div className="result-icon success">✅</div>
+          <div className="result-title">Attendance Recorded!</div>
+          <div className="result-sub">Your attendance has been logged at this location.</div>
+          <div className="scanner-btns">
+            <button className="btn-white" onClick={resetScanner}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {/* FAIL */}
+      {scanPhase === 'fail' && (
+        <div className="scanner-body">
+          <div className="result-icon fail">✖</div>
+          <div className="result-title">Scan Failed</div>
+          <div className="result-sub">{errorMsg}</div>
+          <div className="scanner-btns">
+            <button className="btn-white" onClick={resetScanner}>Try Again</button>
+            <button className="btn-white-ghost" onClick={onBack}>Back</button>
+          </div>
+        </div>
+      )}
+
+      {/* GEO BLOCKED */}
+      {scanPhase === 'geo-fail' && (
+        <div className="scanner-body">
+          <div className="result-icon fail">📍</div>
+          <div className="result-title">Outside Campus</div>
+          <div className="result-sub">You must be on ACLC Ormoc campus to scan attendance. Move closer and try again.</div>
+          <div className="scanner-btns">
+            <button className="btn-white" onClick={resetScanner}>Retry Location</button>
+            <button className="btn-white-ghost" onClick={onBack}>Back</button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

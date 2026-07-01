@@ -33,103 +33,76 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    const { data: pendingRegs, error: lookupError } = await supabase
+    const { data: existing } = await supabase
       .from('device_registrations')
-      .select('id, student_id, student_name')
-      .eq('status', 'pending')
-      .eq('device_identifier', '')
+      .select('id, status')
       .ilike('student_name', student_name.trim())
-      .limit(2)
+      .limit(1)
 
-    if (lookupError) {
-      console.error('Lookup error:', lookupError)
-      return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: 'Database error: ' + lookupError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    if (!pendingRegs || pendingRegs.length === 0) {
-      const { data: approved } = await supabase
-        .from('device_registrations')
-        .select('id')
-        .eq('status', 'approved')
-        .ilike('student_name', student_name.trim())
-        .maybeSingle()
-
-      if (approved) {
+    if (existing && existing.length > 0) {
+      const row = existing[0]
+      if (row.status === 'approved') {
         return new Response(JSON.stringify({
-          success: false,
-          reason: 'ALREADY_APPROVED',
+          success: false, reason: 'ALREADY_APPROVED',
           message: 'This name already has an approved device.',
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
-
+      if (row.status === 'pending') {
+        const { error: upErr } = await supabase
+          .from('device_registrations')
+          .update({ device_identifier, pin })
+          .eq('id', row.id)
+        if (upErr) {
+          console.error('Update error:', upErr)
+          return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: 'Failed to register device' }), {
+            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        return new Response(JSON.stringify({
+          success: true, reason: null, message: 'Device registered! Ask your teacher to approve it.',
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
       return new Response(JSON.stringify({
-        success: false,
-        reason: 'STUDENT_NOT_FOUND',
-        message: 'Name not found. Make sure your teacher added you to the system first.',
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        success: false, reason: 'REVOKED', message: 'This registration was revoked. Ask your teacher to add you again.',
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const { data: teachers } = await supabase
+      .from('teachers')
+      .select('auth_user_id')
+      .limit(1)
+
+    if (!teachers || teachers.length === 0) {
+      console.error('No teachers found')
+      return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: 'No teacher configured' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    if (pendingRegs.length > 1) {
-      return new Response(JSON.stringify({
-        success: false,
-        reason: 'AMBIGUOUS_NAME',
-        message: 'Multiple students found with that name. Ask your teacher to register you.',
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const { error: insErr } = await supabase
+      .from('device_registrations')
+      .insert({
+        student_name: student_name.trim(),
+        device_identifier,
+        pin,
+        teacher_id: teachers[0].auth_user_id,
+        status: 'pending',
       })
-    }
 
-    const reg = pendingRegs[0]
-
-    const { data: existingApproved, error: existingError } = await supabase
-      .from('device_registrations')
-      .select('id')
-      .eq('student_id', reg.student_id)
-      .eq('status', 'approved')
-      .maybeSingle()
-
-    if (existingError) console.error('Error checking existing device:', existingError)
-
-    if (existingApproved) {
-      await supabase.from('device_registrations').update({ status: 'revoked' }).eq('id', existingApproved.id)
-    }
-
-    const { error: updateError } = await supabase
-      .from('device_registrations')
-      .update({ device_identifier, pin })
-      .eq('id', reg.id)
-
-    if (updateError) {
-      console.error('Update error:', updateError)
+    if (insErr) {
+      console.error('Insert error:', insErr)
       return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: 'Failed to register device' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     return new Response(JSON.stringify({
-      success: true,
-      reason: null,
-      message: 'Device registered! Ask your teacher to approve it.',
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+      success: true, reason: null, message: 'Device registered! Ask your teacher to approve it.',
+    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (err) {
     console.error('request-student-device error:', err)
     return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Unknown error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { 'Content-Type': 'application/json' },
     })
   }
 })

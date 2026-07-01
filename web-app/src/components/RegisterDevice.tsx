@@ -30,12 +30,10 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
       const reason = data?.reason ?? ''
       const serverMsg = data?.message || error?.message || JSON.stringify(error)
       console.error('Registration failed:', { reason, serverMsg, error, data })
-      if (reason === 'STUDENT_NOT_FOUND') {
-        setErrorMsg('Name not found. Make sure your teacher added you to the system first.')
-      } else if (reason === 'AMBIGUOUS_NAME') {
-        setErrorMsg('Multiple students found with that name. Ask your teacher to register you.')
-      } else if (reason === 'ALREADY_APPROVED') {
-        setErrorMsg('This name already has an approved device. Ask your teacher to delete it from the roster first.')
+      if (reason === 'ALREADY_APPROVED') {
+        setErrorMsg('This name already has an approved device.')
+      } else if (reason === 'REVOKED') {
+        setErrorMsg('This registration was revoked. Ask your teacher to add you again.')
       } else {
         setErrorMsg('Error: ' + serverMsg)
       }

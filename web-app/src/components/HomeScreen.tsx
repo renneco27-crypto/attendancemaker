@@ -31,7 +31,7 @@ export default function HomeScreen({ onSelectRole }: Props) {
       <div className="home-bg" />
       <div className="home-content">
         <div className="logo-ring">
-          <div style={{ fontSize: 40, fontWeight: 800, color: 'var(--gold)' }}>A</div>
+          <img src="/photo_2.webp" alt="ACLC Ormoc" />
         </div>
         <div className="home-uni">ACLC College Ormoc</div>
         <div className="home-college">College of Computer Studies</div>

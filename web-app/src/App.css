@@ -107,7 +107,9 @@ input:focus { border-color: var(--green2); background: #fff; }
 #home { position: relative; overflow: hidden; }
 .home-bg {
   position: absolute; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, var(--navy) 0%, #0e2a18 60%, var(--navy) 100%);
+  background:
+    linear-gradient(160deg, rgba(11,26,46,.82) 0%, rgba(14,42,24,.82) 60%, rgba(11,26,46,.82) 100%),
+    url('/photo_1.webp') center / cover no-repeat;
 }
 .home-content {
   position: relative; z-index: 1; display: flex; flex-direction: column;

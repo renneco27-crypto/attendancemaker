@@ -12,9 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const { student_name, device_identifier } = await req.json()
+    const { student_name, device_identifier, pin } = await req.json()
 
-    if (!student_name || !device_identifier) {
+    if (!student_name || !device_identifier || !pin || pin.length !== 4) {
       return new Response(JSON.stringify({ success: false, reason: 'MISSING_FIELDS' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -75,7 +75,7 @@ serve(async (req) => {
 
     const { error: updateError } = await supabase
       .from('device_registrations')
-      .update({ device_identifier })
+      .update({ device_identifier, pin })
       .eq('id', reg.id)
 
     if (updateError) {

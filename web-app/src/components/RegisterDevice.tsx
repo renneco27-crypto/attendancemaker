@@ -4,23 +4,26 @@ import { getDeviceId } from '../utils/device'
 
 interface Props {
   onBack: () => void
+  onRegistered: (pin: string) => void
 }
 
 type Phase = 'form' | 'submitting' | 'success' | 'failed'
 
-export default function RegisterDevice({ onBack }: Props) {
+export default function RegisterDevice({ onBack, onRegistered }: Props) {
   const [name, setName] = useState('')
+  const [pin, setPin] = useState('')
+  const [pinConfirm, setPinConfirm] = useState('')
   const [phase, setPhase] = useState<Phase>('form')
   const [message, setMessage] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
   async function handleSubmit() {
-    if (!name.trim()) return
+    if (!name.trim() || pin.length !== 4 || pin !== pinConfirm) return
     setPhase('submitting')
     const deviceId = getDeviceId()
 
     const { data, error } = await supabase().functions.invoke('request-student-device', {
-      body: { student_name: name.trim(), device_identifier: deviceId },
+      body: { student_name: name.trim(), device_identifier: deviceId, pin },
     })
 
     if (error || !data?.success) {
@@ -36,8 +39,15 @@ export default function RegisterDevice({ onBack }: Props) {
       return
     }
 
-    setMessage('Your device has been registered. Ask your teacher to approve it.')
+    setMessage('Device registered! You can now scan attendance.')
     setPhase('success')
+  }
+
+  function pinError() {
+    if (pinConfirm.length === 0) return ''
+    if (pin.length !== pinConfirm.length) return ''
+    if (pin !== pinConfirm) return 'PINs do not match'
+    return ''
   }
 
   return (
@@ -46,19 +56,30 @@ export default function RegisterDevice({ onBack }: Props) {
         <div className="dark-hero-bg" />
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
           <div className="tb-logo">
-            <div className="tb-logo-img"><div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gold)', color: '#fff', fontSize: 18, fontWeight: 800 }}>A</div></div>
+            <div className="tb-logo-img"><img src="/photo_2.webp" alt="ACLC Ormoc" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
             <div className="tb-brand" style={{ color: '#fff' }}>ACLC Ormoc <span style={{ color: 'rgba(255,255,255,.5)' }}>Attendance Scanner</span></div>
           </div>
           <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>← Back</button>
         </div>
         <h2 style={{ fontFamily: "'Sora','Inter',sans-serif", fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 6 }}>Register Your Device</h2>
-        <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 14, lineHeight: 1.6 }}>Submit your name to link this device. Your teacher will approve it.</p>
+        <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 14, lineHeight: 1.6 }}>Submit your name and create a 4-digit PIN. Your teacher will approve your device.</p>
       </div>
       <div className="reg-card">
         {phase === 'form' && (
           <div>
-            <div className="field"><label>Full Name</label><input type="text" placeholder="e.g. Juan Dela Cruz" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }} /></div>
-            <button className="btn-primary" onClick={handleSubmit}>Submit Request</button>
+            <div className="field"><label>Full Name</label><input type="text" placeholder="e.g. Juan Dela Cruz" value={name} onChange={e => setName(e.target.value)} /></div>
+            <div className="field">
+              <label>Create a 4-digit PIN</label>
+              <input type="password" placeholder="Enter PIN" maxLength={4} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+            </div>
+            <div className="field">
+              <label>Confirm PIN</label>
+              <input type="password" placeholder="Re-enter PIN" maxLength={4} value={pinConfirm} onChange={e => setPinConfirm(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+            </div>
+            {pinError() && <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{pinError()}</div>}
+            <button className="btn-primary" onClick={handleSubmit} disabled={!name.trim() || pin.length !== 4 || pin !== pinConfirm}>
+              Submit Registration
+            </button>
           </div>
         )}
         {phase === 'submitting' && (
@@ -70,9 +91,9 @@ export default function RegisterDevice({ onBack }: Props) {
         {phase === 'success' && (
           <div className="reg-result">
             <div className="reg-icon">✅</div>
-            <h3>Request Sent!</h3>
+            <h3>Registered!</h3>
             <p>{message}</p>
-            <button className="btn-primary mt24" onClick={onBack}>Done</button>
+            <button className="btn-primary mt24" onClick={() => onRegistered(pin)}>Continue to Scanner</button>
           </div>
         )}
         {phase === 'failed' && (
@@ -80,7 +101,7 @@ export default function RegisterDevice({ onBack }: Props) {
             <div className="reg-icon">❌</div>
             <h3>Something went wrong</h3>
             <p>{errorMsg}</p>
-            <button className="btn-primary mt24" onClick={() => { setPhase('form'); setErrorMsg('') }}>Try Again</button>
+            <button className="btn-primary mt24" onClick={() => { setPhase('form'); setErrorMsg(''); setPin(''); setPinConfirm('') }}>Try Again</button>
           </div>
         )}
       </div>

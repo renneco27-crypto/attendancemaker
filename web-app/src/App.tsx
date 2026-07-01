@@ -14,21 +14,21 @@ export default function App() {
   const [pinValue, setPinValue] = useState('')
 
   function go(id: Phase) { setPhase(id); window.scrollTo(0, 0) }
-  function handlePinSuccess(pin: string) { setPinValue(pin); setPhase('scanner') }
+  function handleRegistered(pin: string) { setPinValue(pin); setPhase('scanner') }
 
   return (
     <div className="app">
       <div className={`screen ${phase === 'home' ? 'active' : ''}`} id="home">
-        <HomeScreen onSelectRole={(role) => go(role === 'student' ? 'pin' : role === 'teacher' ? 'teacher-login' : 'register')} />
+        <HomeScreen onSelectRole={(role) => go(role === 'student' ? 'register' : role === 'teacher' ? 'teacher-login' : 'register')} />
       </div>
       <div className={`screen ${phase === 'pin' ? 'active' : ''}`} id="pin">
-        <PINGate onSuccess={handlePinSuccess} onBack={() => go('home')} />
+        <PINGate onSuccess={(pin) => { setPinValue(pin); setPhase('scanner') }} onBack={() => go('home')} />
       </div>
       <div className={`screen ${phase === 'scanner' ? 'active' : ''}`} id="scanner">
         <StudentScanner onBack={() => go('home')} pinValue={pinValue} />
       </div>
       <div className={`screen ${phase === 'register' ? 'active' : ''}`} id="register">
-        <RegisterDevice onBack={() => go('home')} />
+        <RegisterDevice onBack={() => go('home')} onRegistered={handleRegistered} />
       </div>
       <div className={`screen ${phase === 'teacher-login' ? 'active' : ''}`} id="teacher-login">
         <TeacherLogin onLogin={() => go('teacher')} onBack={() => go('home')} />

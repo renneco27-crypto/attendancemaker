@@ -85,7 +85,7 @@ serve(async (req) => {
 
     const { data: deviceReg, error: deviceError } = await supabase
       .from('device_registrations')
-      .select('id, student_id, student_name, status')
+      .select('id, student_id, student_name, status, pin')
       .eq('device_identifier', student_device_id)
       .eq('teacher_id', session.teacher_id)
       .single()
@@ -104,8 +104,7 @@ serve(async (req) => {
       })
     }
 
-    const expectedPin = Deno.env.get('ATTENDANCE_PIN') ?? '1234'
-    if (pin !== expectedPin) {
+    if (!deviceReg.pin || pin !== deviceReg.pin) {
       return new Response(JSON.stringify({ error: 'Incorrect PIN' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

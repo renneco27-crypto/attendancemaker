@@ -149,7 +149,7 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
   return (
     <>
       <div className="scanner-topbar">
-        <div className="tb-logo-img"><div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gold)', color: '#fff', fontSize: 18, fontWeight: 800 }}>A</div></div>
+        <div className="tb-logo-img"><img src="/photo_2.webp" alt="ACLC Ormoc" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
         <div className="tb-brand" style={{ fontSize: 15, fontWeight: 800 }}>
           {scanPhase === 'success' ? 'Attendance Recorded!' : scanPhase === 'fail' ? 'Scan Failed' : 'QR Scanner'}
           <span>ACLC Ormoc · Attendance</span>

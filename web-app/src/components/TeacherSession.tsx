@@ -230,7 +230,7 @@ export default function TeacherSession({ onLogout }: Props) {
       <div className="teacher-topbar">
         <div className="teacher-topbar-row">
           <div className="tb-logo">
-            <div className="tb-logo-img"><div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gold)', color: '#fff', fontSize: 18, fontWeight: 800 }}>A</div></div>
+            <div className="tb-logo-img"><img src="/photo_2.webp" alt="ACLC Ormoc" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
             <div className="tb-brand">ACLC Ormoc <span>Teacher Panel</span></div>
           </div>
           <button onClick={handleLogout} style={{ padding: '8px 14px', borderRadius: 10, background: 'var(--red-lt)', color: 'var(--red)', border: '1px solid #f5c0c0', fontFamily: 'Inter,sans-serif', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Logout</button>

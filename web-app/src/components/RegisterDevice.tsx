@@ -10,15 +10,18 @@ interface Props {
 type Phase = 'form' | 'submitting' | 'success' | 'failed'
 
 export default function RegisterDevice({ onBack, onRegistered }: Props) {
+  const SECTIONS = ['BSIT 2-A', 'BSIT 2-B']
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
   const [pinConfirm, setPinConfirm] = useState('')
+  const [section, setSection] = useState('')
   const [phase, setPhase] = useState<Phase>('form')
   const [message, setMessage] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
   async function handleSubmit() {
     if (!name.trim() || pin.length !== 4 || pin !== pinConfirm) return
+    if (!section) { setErrorMsg('Please select your section.'); setPhase('failed'); return }
     setPhase('submitting')
     const deviceId = getDeviceId()
 
@@ -48,9 +51,16 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
         if (row.status === 'pending') {
           const { error: upErr } = await supabase()
             .from('device_registrations')
-            .update({ device_identifier: deviceId, pin })
+            .update({ device_identifier: deviceId, pin, section })
             .eq('id', row.id)
-          if (upErr) { setErrorMsg('Error updating: ' + upErr.message); setPhase('failed'); return }
+          if (upErr) {
+            if (upErr.message?.includes('idx_device_registrations_uniq')) {
+              setErrorMsg('You have already used this device to sign in to an account. Please tell an admin to delete your account.')
+            } else {
+              setErrorMsg('Error updating: ' + upErr.message)
+            }
+            setPhase('failed'); return
+          }
           setMessage('Device registered! You can now scan attendance.')
           setPhase('success'); onRegistered(pin); return
         }
@@ -64,10 +74,18 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
           student_name: name.trim(),
           device_identifier: deviceId,
           pin,
+          section,
           teacher_id: teacherId,
           status: 'pending',
         })
-      if (insErr) { setErrorMsg('Error: ' + insErr.message); setPhase('failed'); return }
+      if (insErr) {
+        if (insErr.message?.includes('idx_device_registrations_uniq')) {
+          setErrorMsg('You have already used this device to sign in to an account. Please tell an admin to delete your account.')
+        } else {
+          setErrorMsg('Error: ' + insErr.message)
+        }
+        setPhase('failed'); return
+      }
 
       setMessage('Device registered! You can now scan attendance.')
       setPhase('success')
@@ -111,8 +129,15 @@ export default function RegisterDevice({ onBack, onRegistered }: Props) {
               <label>Confirm PIN</label>
               <input type="password" placeholder="Re-enter PIN" maxLength={4} value={pinConfirm} onChange={e => setPinConfirm(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
             </div>
+            <div className="field">
+              <label>Section</label>
+              <select value={section} onChange={e => setSection(e.target.value)}>
+                <option value="">Select your section</option>
+                {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
             {pinError() && <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{pinError()}</div>}
-            <button className="btn-primary" onClick={handleSubmit} disabled={!name.trim() || pin.length !== 4 || pin !== pinConfirm}>
+            <button className="btn-primary" onClick={handleSubmit} disabled={!name.trim() || pin.length !== 4 || pin !== pinConfirm || !section}>
               Submit Registration
             </button>
           </div>

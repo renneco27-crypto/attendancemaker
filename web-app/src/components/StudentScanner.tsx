@@ -199,7 +199,7 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
 
     const { error: insErr } = await supabase()
       .from('attendance_records')
-      .insert({ session_id: last.session_id, student_id: devReg.student_id })
+      .insert({ session_id: last.session_id, student_id: devReg.student_id, student_name: devReg.student_name })
 
     if (insErr) {
       setErrorMsg('Server error. Try again.')

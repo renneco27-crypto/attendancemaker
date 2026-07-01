@@ -102,6 +102,12 @@ input[type=text], input[type=password], input[type=email] {
   outline: none; transition: border-color .15s;
 }
 input:focus { border-color: var(--green2); background: #fff; }
+.field select {
+  width: 100%; padding: 14px 16px;
+  background: var(--off); border: 1.5px solid var(--border);
+  border-radius: 12px; font-family: 'Inter', sans-serif; font-size: 15px; color: var(--text);
+  outline: none; appearance: auto;
+}
 
 /* HOME */
 #home { position: relative; overflow: hidden; }
@@ -136,10 +142,8 @@ input:focus { border-color: var(--green2); background: #fff; }
 }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 .home-sub { color: rgba(255,255,255,.5); font-size: 14px; line-height: 1.65; margin-bottom: 16px; animation: fadeUp .7s .15s ease both; }
-.home-btns { width: 100%; display: flex; flex-direction: column; animation: fadeUp .7s .25s ease both; }
-.home-btns .btn-primary { margin-top: 12px; }
-.home-row { display: grid; grid-template-columns: 1fr 1fr; }
-.home-row .btn-outline { margin-top: 14px; }
+.home-btns { width: 100%; display: flex; flex-direction: column; gap: 56px; animation: fadeUp .7s .25s ease both; }
+.home-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
 /* Geo pill */
 .geo-pill {
@@ -275,6 +279,9 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--sub); te
 .teacher-tabs { display: flex; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+.section-row { display: flex; align-items: center; gap: 8px; padding: 8px 16px 10px; }
+.section-label { font-size: 12px; font-weight: 700; color: var(--muted); }
+.section-select { font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--white); font-family: 'Inter',sans-serif; font-weight: 600; color: var(--text); }
 
 /* Greet card */
 .greet-card {

@@ -47,6 +47,8 @@ export default function TeacherSession({ onLogout }: Props) {
   interface PastClass { id: string; class_name: string }
   const [pastClasses, setPastClasses] = useState<PastClass[]>([])
   const [selectedChip, setSelectedChip] = useState('')
+  const SECTIONS = ['BSIT 2-A', 'BSIT 2-B']
+  const [selectedSection, setSelectedSection] = useState('')
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const channelRef = useRef<any>(null)
 
@@ -63,12 +65,18 @@ export default function TeacherSession({ onLogout }: Props) {
       if (!user) return
       teacherIdRef.current = user.id
       setTeacherId(user.id)
-      setTeacherName(user.email?.split('@')[0]?.replace(/[.].*/, '') ??
-        user.user_metadata?.full_name ?? 'Teacher')
+      const name = user.email?.split('@')[0]?.replace(/[.].*/, '') ??
+        user.user_metadata?.full_name ?? 'Teacher'
+      setTeacherName(name)
+      const { data: existing } = await supabase()
+        .from('teachers').select('id').eq('auth_user_id', user.id).maybeSingle()
+      if (!existing) {
+        await supabase().from('teachers').insert({ auth_user_id: user.id, name })
+      }
       cleanupOldPending()
       fetchPastClasses(user.id)
-      fetchRoster(user.id)
-      fetchPending(user.id)
+      fetchRoster()
+      fetchPending()
     } catch (e) {
       alert('Failed to initialize: ' + (e instanceof Error ? e.message : e))
     }
@@ -97,49 +105,36 @@ export default function TeacherSession({ onLogout }: Props) {
     }
   }
 
-  async function fetchRoster(uid?: string) {
-    const tid = uid || teacherIdRef.current || teacherId
-    if (!tid) return
-    const { data, error } = await supabase()
+  async function fetchRoster() {
+    let query = supabase()
       .from('device_registrations')
       .select('id, student_name, created_at, status')
-      .eq('teacher_id', tid)
       .neq('status', 'revoked')
-      .order('created_at', { ascending: false })
+    if (selectedSection) query = query.eq('section', selectedSection)
+    const { data, error } = await query.order('created_at', { ascending: false })
     if (error) console.error('fetchRoster error:', error.message)
     if (data) setRoster(data as RosterEntry[])
   }
 
-  async function fetchPending(uid?: string) {
-    const tid = uid || teacherId
-    if (!tid) return
+  async function fetchPending() {
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString()
-    const { data, error } = await supabase()
+    let query = supabase()
       .from('device_registrations')
       .select('id, student_name, device_identifier, created_at')
-      .eq('teacher_id', tid)
       .eq('status', 'pending')
       .neq('device_identifier', '')
       .gte('created_at', twoDaysAgo)
-      .order('created_at', { ascending: false })
+    if (selectedSection) query = query.eq('section', selectedSection)
+    const { data, error } = await query.order('created_at', { ascending: false })
     if (error) console.error('fetchPending error:', error.message)
     if (data) setPendingList(data as PendingRequest[])
   }
 
   async function handleApprove(requestId: string) {
-    let uid = teacherIdRef.current || teacherId
-    if (!uid) {
-      const { data: { user } } = await supabase().auth.getUser()
-      if (!user) return
-      uid = user.id
-      teacherIdRef.current = uid
-      setTeacherId(uid)
-    }
     const { error } = await supabase()
       .from('device_registrations')
       .update({ status: 'approved' })
       .eq('id', requestId)
-      .eq('teacher_id', uid)
     if (!error) fetchPending()
   }
 
@@ -150,33 +145,25 @@ export default function TeacherSession({ onLogout }: Props) {
 
   async function handleAddStudent() {
     if (!newStudentName.trim()) return
-    let uid = teacherIdRef.current || teacherId
-    if (!uid) {
-      const { data: { user } } = await supabase().auth.getUser()
-      if (!user) { alert('Not authenticated. Please log out and log back in.'); return }
-      uid = user.id
-      teacherIdRef.current = uid
-      setTeacherId(uid)
-    }
     const name = newStudentName.trim()
-    const { data: existing } = await supabase()
+    let query = supabase()
       .from('device_registrations')
       .select('id')
-      .eq('teacher_id', uid)
       .eq('student_name', name)
       .neq('status', 'revoked')
-      .maybeSingle()
+    if (selectedSection) query = query.eq('section', selectedSection)
+    const { data: existing } = await query.maybeSingle()
     if (existing) { alert('Student "' + name + '" is already in the roster.'); return }
     const { error } = await supabase()
       .from('device_registrations')
-      .insert({ student_name: name, teacher_id: uid, device_identifier: '', status: 'pending' })
-    if (!error) { setNewStudentName(''); fetchRoster(uid) }
+      .insert({ student_name: name, device_identifier: '', status: 'pending', section: selectedSection || '' })
+    if (!error) { setNewStudentName(''); fetchRoster() }
     else { alert('Failed to add student: ' + error.message) }
   }
 
   async function handleRemoveStudent(deviceRegistrationId: string) {
     const ok = await revokeDevice(deviceRegistrationId)
-    if (ok) fetchRoster(teacherId)
+    if (ok) fetchRoster()
   }
 
   function selectChip(name: string) {
@@ -219,15 +206,9 @@ export default function TeacherSession({ onLogout }: Props) {
     channel.on('postgres_changes', {
       event: 'INSERT', schema: 'public', table: 'attendance_records',
       filter: `session_id=eq.${id}`,
-    }, async (payload: any) => {
+    }, (payload: any) => {
       const r = payload.new
-      const { data: devReg } = await supabase()
-        .from('device_registrations')
-        .select('student_name')
-        .eq('student_id', r.student_id)
-        .eq('teacher_id', teacherId)
-        .maybeSingle()
-      setAttendees(prev => [...prev, { id: r.id, student_name: devReg?.student_name ?? 'Unknown', scanned_at: r.scanned_at }])
+      setAttendees(prev => [...prev, { id: r.id, student_name: r.student_name ?? 'Unknown', scanned_at: r.scanned_at }])
     })
     channel.subscribe()
     channelRef.current = channel
@@ -297,6 +278,14 @@ export default function TeacherSession({ onLogout }: Props) {
           <button className={`tab-btn ${tab === 'session' ? 'active' : ''}`} onClick={() => setTab('session')}>Session</button>
           <button className={`tab-btn ${tab === 'registrations' ? 'active' : ''}`} onClick={() => { setTab('registrations'); fetchPending() }}>Registrations</button>
           <button className={`tab-btn ${tab === 'roster' ? 'active' : ''}`} onClick={() => { setTab('roster'); fetchRoster() }}>Roster</button>
+        </div>
+        <div className="section-row">
+          <span className="section-label">Section:</span>
+          <select className="section-select" value={selectedSection}
+            onChange={e => { setSelectedSection(e.target.value); fetchRoster(); fetchPending() }}>
+            <option value="">All Sections</option>
+            {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
         </div>
       </div>
 

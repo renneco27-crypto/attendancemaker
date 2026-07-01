@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../services/supabase'
 import { createSession, endSession, rotateSessionKey, revokeDevice } from '../services/api'
+import { resetSupabaseClient } from '../services/supabase'
 
 interface Props {
   onLogout: () => void
@@ -246,6 +247,7 @@ export default function TeacherSession({ onLogout }: Props) {
   async function handleLogout() {
     cleanup()
     try { await supabase().auth.signOut() } catch {}
+    resetSupabaseClient()
     onLogout()
   }
 

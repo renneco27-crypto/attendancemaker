@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { supabase } from '../services/supabase'
+import { supabase, resetSupabaseClient } from '../services/supabase'
 
 interface Props {
   onLogin: () => void
@@ -13,6 +13,7 @@ export default function TeacherLogin({ onLogin, onBack }: Props) {
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit() {
+    resetSupabaseClient()
     setLoading(true)
     setError('')
     try {

@@ -28,3 +28,7 @@ function getClient(): SupabaseClient {
 export function supabase(): SupabaseClient {
   return getClient()
 }
+
+export function resetSupabaseClient(): void {
+  client = null
+}

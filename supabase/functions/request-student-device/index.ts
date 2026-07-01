@@ -21,21 +21,35 @@ serve(async (req) => {
       })
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+      return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: 'Server misconfigured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey)
 
     const { data: pendingRegs, error: lookupError } = await supabase
       .from('device_registrations')
       .select('id, student_id, student_name')
       .eq('status', 'pending')
-      .eq('device_identifier', '')
+      .or('device_identifier.is.null,device_identifier.eq.""')
       .ilike('student_name', student_name.trim())
       .limit(2)
 
-    if (lookupError || !pendingRegs || pendingRegs.length === 0) {
-      // Check if the student has an approved device already
+    if (lookupError) {
+      console.error('Lookup error:', lookupError)
+      return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: 'Database error: ' + lookupError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!pendingRegs || pendingRegs.length === 0) {
       const { data: approved } = await supabase
         .from('device_registrations')
         .select('id')
@@ -77,19 +91,17 @@ serve(async (req) => {
 
     const reg = pendingRegs[0]
 
-    // Revoke any existing approved device for this student
-    const { data: existingApproved } = await supabase
+    const { data: existingApproved, error: existingError } = await supabase
       .from('device_registrations')
       .select('id')
       .eq('student_id', reg.student_id)
       .eq('status', 'approved')
       .maybeSingle()
 
+    if (existingError) console.error('Error checking existing device:', existingError)
+
     if (existingApproved) {
-      await supabase
-        .from('device_registrations')
-        .update({ status: 'revoked' })
-        .eq('id', existingApproved.id)
+      await supabase.from('device_registrations').update({ status: 'revoked' }).eq('id', existingApproved.id)
     }
 
     const { error: updateError } = await supabase
@@ -98,7 +110,8 @@ serve(async (req) => {
       .eq('id', reg.id)
 
     if (updateError) {
-      return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR' }), {
+      console.error('Update error:', updateError)
+      return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR', message: 'Failed to register device' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })

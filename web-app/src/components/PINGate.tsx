@@ -104,7 +104,7 @@ export default function PINGate({ onSuccess, onBack }: Props) {
       {phase === 'checking' && (
         <div className="reg-card">
           <div className="reg-result" style={{ padding: 40 }}>
-            <div style={{ width: 40, height: 40, border: '4px solid var(--border)', borderTopColor: 'var(--green2)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+            <img src="/emu-300.gif" style={{ width: 80, height: 80 }} />
             <h3>{checkMsg}</h3>
           </div>
         </div>

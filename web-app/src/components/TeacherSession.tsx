@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { supabase } from '../services/supabase'
 import { createSession, endSession, rotateSessionKey, revokeDevice } from '../services/api'
 import { resetSupabaseClient } from '../services/supabase'
+import MonthlyAttendance from './MonthlyAttendance'
 
 interface Props {
   onLogout: () => void
@@ -28,7 +29,7 @@ interface Attendee {
   scanned_at: string
 }
 
-type Tab = 'session' | 'registrations' | 'roster'
+type Tab = 'session' | 'registrations' | 'roster' | 'attendance'
 
 export default function TeacherSession({ onLogout }: Props) {
   const [teacherId, setTeacherId] = useState('')
@@ -278,6 +279,7 @@ export default function TeacherSession({ onLogout }: Props) {
           <button className={`tab-btn ${tab === 'session' ? 'active' : ''}`} onClick={() => setTab('session')}>Session</button>
           <button className={`tab-btn ${tab === 'registrations' ? 'active' : ''}`} onClick={() => { setTab('registrations'); fetchPending() }}>Registrations</button>
           <button className={`tab-btn ${tab === 'roster' ? 'active' : ''}`} onClick={() => { setTab('roster'); fetchRoster() }}>Roster</button>
+          <button className={`tab-btn ${tab === 'attendance' ? 'active' : ''}`} onClick={() => setTab('attendance')}>Attendance</button>
         </div>
         <div className="section-row">
           <span className="section-label">Section:</span>
@@ -441,6 +443,11 @@ export default function TeacherSession({ onLogout }: Props) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ── ATTENDANCE TAB ── */}
+        <div className={`tab-panel ${tab === 'attendance' ? 'active' : ''}`} id="tab-attendance">
+          <MonthlyAttendance selectedSection={selectedSection} />
         </div>
       </div>
     </>

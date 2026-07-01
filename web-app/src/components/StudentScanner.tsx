@@ -165,7 +165,7 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
     const deviceId = getDeviceId()
     const { data: devReg, error: devErr } = await supabase()
       .from('device_registrations')
-      .select('id, student_id, student_name, status, pin')
+      .select('id, student_id, student_name, status, pin, section')
       .eq('device_identifier', deviceId)
       .eq('teacher_id', session.teacher_id)
       .single()
@@ -199,7 +199,7 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
 
     const { error: insErr } = await supabase()
       .from('attendance_records')
-      .insert({ session_id: last.session_id, student_id: devReg.student_id, student_name: devReg.student_name })
+      .insert({ session_id: last.session_id, student_id: devReg.student_id, student_name: devReg.student_name, section: devReg.section })
 
     if (insErr) {
       setErrorMsg('Server error. Try again.')

@@ -13,6 +13,7 @@ type Phase = 'home' | 'pin' | 'scanner' | 'teacher-login' | 'teacher' | 'registe
 export default function App() {
   const [phase, setPhase] = useState<Phase>('home')
   const [pinValue, setPinValue] = useState('')
+  const [navCount, setNavCount] = useState(0)
 
   useEffect(() => {
     supabase().auth.getSession().then(({ data: { session } }) => {
@@ -20,7 +21,7 @@ export default function App() {
     }).catch(() => {})
   }, [])
 
-  function go(id: Phase) { setPhase(id); window.scrollTo(0, 0) }
+  function go(id: Phase) { setNavCount(c => c + 1); setPhase(id); window.scrollTo(0, 0) }
   function handleRegistered(pin: string) { setPinValue(pin) }
   async function handleSelectRole(role: string) {
     if (role === 'teacher') {
@@ -39,13 +40,13 @@ export default function App() {
         <HomeScreen onSelectRole={handleSelectRole} />
       </div>
       <div className={`screen ${phase === 'pin' ? 'active' : ''}`} id="pin">
-        <PINGate onSuccess={(pin) => { setPinValue(pin); setPhase('scanner') }} onBack={() => go('home')} />
+        <PINGate key={navCount} onSuccess={(pin) => { setPinValue(pin); setPhase('scanner') }} onBack={() => go('home')} />
       </div>
       <div className={`screen ${phase === 'scanner' ? 'active' : ''}`} id="scanner">
-        <StudentScanner onBack={() => go('home')} pinValue={pinValue} />
+        <StudentScanner key={navCount} onBack={() => go('home')} pinValue={pinValue} />
       </div>
       <div className={`screen ${phase === 'register' ? 'active' : ''}`} id="register">
-        <RegisterDevice onBack={() => go('home')} onRegistered={handleRegistered} />
+        <RegisterDevice key={navCount} onBack={() => go('home')} onRegistered={handleRegistered} />
       </div>
       <div className={`screen ${phase === 'teacher-login' ? 'active' : ''}`} id="teacher-login">
         <TeacherLogin onLogin={() => go('teacher')} onBack={() => go('home')} />

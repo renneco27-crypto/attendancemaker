@@ -135,13 +135,13 @@ input:focus { border-color: var(--green2); background: #fff; }
 }
 .logo-ring img { width: 100%; height: 100%; object-fit: cover; }
 .home-uni { color: rgba(255,255,255,.75); font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; line-height: 1.6; margin-bottom: 2px; }
-.home-college { color: var(--gold-lt); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 12px; }
+.home-college { color: var(--gold-lt); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 20px; }
 .home-title {
-  font-family: 'Sora', 'Inter', sans-serif; color: var(--white); font-size: 30px; font-weight: 800; line-height: 1.1; margin-bottom: 6px;
+  font-family: 'Sora', 'Inter', sans-serif; color: var(--white); font-size: 30px; font-weight: 800; line-height: 1.1; margin-bottom: 22px;
   animation: fadeUp .7s ease both;
 }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-.home-sub { color: rgba(255,255,255,.5); font-size: 14px; line-height: 1.65; margin-bottom: 10px; animation: fadeUp .7s .15s ease both; }
+.home-sub { color: rgba(255,255,255,.5); font-size: 14px; line-height: 1.65; margin-bottom: 20px; animation: fadeUp .7s .15s ease both; }
 .home-btns { width: 100%; display: flex; flex-direction: column; gap: 40px; animation: fadeUp .7s .25s ease both; }
 .home-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
@@ -150,7 +150,7 @@ input:focus { border-color: var(--green2); background: #fff; }
   display: inline-flex; align-items: center; gap: 6px;
   background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
   border-radius: 20px; padding: 6px 14px; color: rgba(255,255,255,.65); font-size: 12px;
-  margin-bottom: 10px; backdrop-filter: blur(4px);
+  margin-bottom: 20px; backdrop-filter: blur(4px);
 }
 .geo-dot { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; animation: blink 1.2s infinite; }
 @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }

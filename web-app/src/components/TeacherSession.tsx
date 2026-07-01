@@ -16,10 +16,9 @@ interface AttendanceRecord {
 
 interface PendingRequest {
   id: string
-  student_id: string
-  new_device_identifier: string
+  student_name: string
+  device_identifier: string
   created_at: string
-  students: { name: string } | null
 }
 
 interface RosterEntry {
@@ -61,8 +60,8 @@ export default function TeacherSession({ onLogout }: Props) {
       setTeacherId(user.id)
       fetchPastClasses(user.id)
       fetchRoster(user.id)
+      fetchPendingRequests(user.id)
     }
-    fetchPendingRequests()
   }
 
   async function fetchPastClasses(uid: string) {
@@ -89,28 +88,38 @@ export default function TeacherSession({ onLogout }: Props) {
     if (data) setRoster(data as RosterEntry[])
   }
 
-  async function fetchPendingRequests() {
+  async function fetchPendingRequests(uid?: string) {
+    const tid = uid || teacherId
+    if (!tid) return
     const c = supabase()
     const { data } = await c
-      .from('device_change_requests')
-      .select(`id, student_id, new_device_identifier, created_at, students(name)`)
+      .from('device_registrations')
+      .select('id, student_name, device_identifier, created_at')
+      .eq('teacher_id', tid)
       .eq('status', 'pending')
+      .neq('device_identifier', '')
       .order('created_at', { ascending: false })
 
-    if (data) setPendingRequests(data as unknown as PendingRequest[])
+    if (data) setPendingRequests(data as PendingRequest[])
   }
 
   async function handleApprove(requestId: string) {
-    const { error } = await supabase().functions.invoke('approve-device-change', {
-      body: { request_id: requestId, approve: true },
-    })
+    const c = supabase()
+    const { error } = await c
+      .from('device_registrations')
+      .update({ status: 'approved' })
+      .eq('id', requestId)
+      .eq('teacher_id', teacherId)
     if (!error) fetchPendingRequests()
   }
 
   async function handleReject(requestId: string) {
-    const { error } = await supabase().functions.invoke('approve-device-change', {
-      body: { request_id: requestId, approve: false },
-    })
+    const c = supabase()
+    const { error } = await c
+      .from('device_registrations')
+      .update({ status: 'revoked' })
+      .eq('id', requestId)
+      .eq('teacher_id', teacherId)
     if (!error) fetchPendingRequests()
   }
 
@@ -235,7 +244,7 @@ export default function TeacherSession({ onLogout }: Props) {
       <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className={`tab-btn ${tab === 'session' ? 'tab-active' : ''}`} onClick={() => setTab('session')}>Session</button>
-          <button className={`tab-btn ${tab === 'registrations' ? 'tab-active' : ''}`} onClick={() => { setTab('registrations'); fetchPendingRequests() }}>
+          <button className={`tab-btn ${tab === 'registrations' ? 'tab-active' : ''}`} onClick={() => { setTab('registrations'); fetchPendingRequests(teacherId) }}>
             Registrations {pendingRequests.length > 0 && `(${pendingRequests.length})`}
           </button>
           <button className={`tab-btn ${tab === 'roster' ? 'tab-active' : ''}`} onClick={() => { setTab('roster'); if (teacherId) fetchRoster(teacherId) }}>Roster</button>
@@ -253,8 +262,8 @@ export default function TeacherSession({ onLogout }: Props) {
             pendingRequests.map(r => (
               <div key={r.id} className="request-card">
                 <div>
-                  <strong>{r.students?.name ?? 'Unknown'}</strong>
-                  <p style={{ fontSize: 12, color: '#999', wordBreak: 'break-all' }}>{r.new_device_identifier}</p>
+                  <strong>{r.student_name ?? 'Unknown'}</strong>
+                  <p style={{ fontSize: 12, color: '#999', wordBreak: 'break-all' }}>{r.device_identifier}</p>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn-primary" style={{ padding: '8px 16px', width: 'auto', fontSize: 13 }} onClick={() => handleApprove(r.id)}>Approve</button>

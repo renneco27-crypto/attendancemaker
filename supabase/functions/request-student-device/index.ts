@@ -26,71 +26,43 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const { data: students, error: lookupError } = await supabase
-      .from('students')
-      .select('id')
-      .ilike('name', student_name.trim())
+    const { data: registrations, error: lookupError } = await supabase
+      .from('device_registrations')
+      .select('id, student_name')
+      .eq('status', 'pending')
+      .eq('device_identifier', '')
+      .ilike('student_name', student_name.trim())
       .limit(2)
 
-    if (lookupError || !students || students.length === 0) {
+    if (lookupError || !registrations || registrations.length === 0) {
       return new Response(JSON.stringify({
         success: false,
         reason: 'STUDENT_NOT_FOUND',
-        message: 'Name not found. Contact your teacher to be added.',
+        message: 'Name not found. Make sure your teacher added you to the system first.',
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    if (students.length > 1) {
+    if (registrations.length > 1) {
       return new Response(JSON.stringify({
         success: false,
         reason: 'AMBIGUOUS_NAME',
-        message: 'Multiple students found with that name. Teacher must register your device.',
+        message: 'Multiple students found with that name. Ask your teacher to register you.',
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const studentId = students[0].id
+    const reg = registrations[0]
+    const { error: updateError } = await supabase
+      .from('device_registrations')
+      .update({ device_identifier })
+      .eq('id', reg.id)
 
-    const { data: existingDevice } = await supabase
-      .from('devices')
-      .select('id, active')
-      .eq('student_id', studentId)
-      .eq('active', true)
-      .maybeSingle()
-
-    const { data: existingPending } = await supabase
-      .from('device_change_requests')
-      .select('id')
-      .eq('student_id', studentId)
-      .eq('status', 'pending')
-      .maybeSingle()
-
-    if (existingPending) {
-      return new Response(JSON.stringify({
-        success: false,
-        reason: 'PENDING_EXISTS',
-        message: 'You already have a pending registration request.',
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    const { error: insertError } = await supabase
-      .from('device_change_requests')
-      .insert({
-        student_id: studentId,
-        old_device_id: existingDevice?.id ?? null,
-        new_device_identifier: device_identifier,
-        status: 'pending',
-      })
-
-    if (insertError) {
+    if (updateError) {
       return new Response(JSON.stringify({ success: false, reason: 'SERVER_ERROR' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -100,7 +72,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       reason: null,
-      message: 'Registration request submitted. Ask your teacher to approve it.',
+      message: 'Device registered! Ask your teacher to approve it.',
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -89,6 +89,7 @@ export default function TeacherSession({ onLogout }: Props) {
       .from('device_registrations')
       .select('id, student_name, created_at, status')
       .eq('teacher_id', tid)
+      .neq('status', 'revoked')
       .order('created_at', { ascending: false })
     if (error) console.error('fetchRoster error:', error.message)
     if (data) setRoster(data as RosterEntry[])
@@ -97,12 +98,14 @@ export default function TeacherSession({ onLogout }: Props) {
   async function fetchPending(uid?: string) {
     const tid = uid || teacherId
     if (!tid) return
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString()
     const { data, error } = await supabase()
       .from('device_registrations')
       .select('id, student_name, device_identifier, created_at')
       .eq('teacher_id', tid)
       .eq('status', 'pending')
       .neq('device_identifier', '')
+      .gte('created_at', twoDaysAgo)
       .order('created_at', { ascending: false })
     if (error) console.error('fetchPending error:', error.message)
     if (data) setPendingList(data as PendingRequest[])

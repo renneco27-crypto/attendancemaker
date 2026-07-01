@@ -26,10 +26,6 @@ policy = "per_worker"
   enabled = true
   verify_jwt = false
 
-  [functions.validate-scan]
-  enabled = true
-  verify_jwt = false
-
   [functions.revoke-device]
   enabled = true
   verify_jwt = true

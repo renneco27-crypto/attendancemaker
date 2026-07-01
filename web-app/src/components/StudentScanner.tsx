@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
-import { validateScan } from '../services/api'
+import { supabase } from '../services/supabase'
 import { getDeviceId } from '../utils/device'
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
 type ScanPhase = 'idle' | 'scanning' | 'success' | 'fail' | 'geo-fail'
 
 const SCANNER_ID = 'qr-scanner'
-const CAPTURE_WINDOW_MS = 2000
+const CAPTURE_WINDOW_MS = 10000
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000, toR = Math.PI / 180
@@ -112,34 +112,97 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
       return
     }
 
-    // Take the last two captured
     const last = caps[caps.length - 1]
     const prev = caps[caps.length - 2]
 
-    setScanPhase('success')
+    const { data: session, error: sessErr } = await supabase()
+      .from('attendance_sessions')
+      .select('*')
+      .eq('id', last.session_id)
+      .single()
 
-    const result = await validateScan({
-      session_id: last.session_id,
-      rotation_key: last.rotation_key,
-      previous_rotation_key: prev.rotation_key,
-      student_device_id: getDeviceId(),
-      pin: pinValue,
-    })
-
-    if (result.success) {
-      setScanPhase('success')
-    } else {
-      const msg = !result.error ? 'Scan failed. Try again.'
-        : result.error === 'Device not registered' ? 'Device not registered. Contact your teacher.'
-        : result.error === 'Device not approved' ? 'Your device hasn\'t been approved yet.'
-        : result.error === 'Session has ended' || result.error === 'Session expired' ? 'Session has ended.'
-        : result.error === 'QR code expired, please rescan' ? 'QR code expired. Try again.'
-        : result.error === 'Incorrect PIN' ? 'Incorrect PIN.'
-        : result.error === 'Already checked in' ? 'You have already checked in for this session.'
-        : result.error
-      setErrorMsg(msg)
-      setScanPhase('fail')
+    if (sessErr || !session) {
+      setErrorMsg('Session not found')
+      setScanPhase('fail'); return
     }
+
+    if (!session.is_active) {
+      setErrorMsg('Session has ended.')
+      setScanPhase('fail'); return
+    }
+
+    if (new Date(session.expires_at) < new Date()) {
+      setErrorMsg('Session has ended.')
+      setScanPhase('fail'); return
+    }
+
+    if (last.rotation_key === prev.rotation_key) {
+      setErrorMsg('QR code expired. Try again.')
+      setScanPhase('fail'); return
+    }
+
+    if (session.rotation_key !== last.rotation_key) {
+      setErrorMsg('QR code expired. Try again.')
+      setScanPhase('fail'); return
+    }
+
+    const prevKeys = session.previous_rotation_keys ?? []
+    if (!prevKeys.includes(prev.rotation_key)) {
+      setErrorMsg('QR code expired. Try again.')
+      setScanPhase('fail'); return
+    }
+
+    const keyAge = Date.now() - new Date(session.rotation_key_updated_at).getTime()
+    if (keyAge > 2000) {
+      setErrorMsg('QR code expired. Try again.')
+      setScanPhase('fail'); return
+    }
+
+    const deviceId = getDeviceId()
+    const { data: devReg, error: devErr } = await supabase()
+      .from('device_registrations')
+      .select('id, student_id, student_name, status, pin')
+      .eq('device_identifier', deviceId)
+      .eq('teacher_id', session.teacher_id)
+      .single()
+
+    if (devErr || !devReg) {
+      setErrorMsg('Device not registered. Contact your teacher.')
+      setScanPhase('fail'); return
+    }
+
+    if (devReg.status !== 'approved') {
+      setErrorMsg('Your device hasn\'t been approved yet.')
+      setScanPhase('fail'); return
+    }
+
+    if (!devReg.pin || pinValue !== devReg.pin) {
+      setErrorMsg('Incorrect PIN.')
+      setScanPhase('fail'); return
+    }
+
+    const { data: existing } = await supabase()
+      .from('attendance_records')
+      .select('id')
+      .eq('session_id', last.session_id)
+      .eq('student_id', devReg.student_id)
+      .maybeSingle()
+
+    if (existing) {
+      setErrorMsg('You have already checked in for this session.')
+      setScanPhase('fail'); return
+    }
+
+    const { error: insErr } = await supabase()
+      .from('attendance_records')
+      .insert({ session_id: last.session_id, student_id: devReg.student_id })
+
+    if (insErr) {
+      setErrorMsg('Server error. Try again.')
+      setScanPhase('fail'); return
+    }
+
+    setScanPhase('success')
   }
 
   async function stopScanner() {

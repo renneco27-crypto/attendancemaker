@@ -89,8 +89,12 @@ export default function TeacherSession({ onLogout }: Props) {
       .select('id, class_name')
       .eq('teacher_id', uid)
       .order('created_at', { ascending: false })
-      .limit(20)
-    if (data) setPastClasses(data)
+      .limit(50)
+    if (data) {
+      const seen = new Set<string>()
+      const deduped = data.filter(s => { if (seen.has(s.class_name)) return false; seen.add(s.class_name); return true })
+      setPastClasses(deduped)
+    }
   }
 
   async function fetchRoster(uid?: string) {

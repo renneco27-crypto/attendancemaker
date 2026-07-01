@@ -50,7 +50,7 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
     if (!navigator.geolocation) { setGeoText('⚠️ Could not verify location'); return }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const dist = haversine(pos.coords.latitude, pos.coords.longitude, 11.0027, 124.6075)
+        const dist = haversine(pos.coords.latitude, pos.coords.longitude, 11.021893, 124.587584)
         if (dist <= 300) setGeoText(`✅ On campus (${Math.round(dist)}m from gate)`)
         else { setGeoText(`❌ You are ${Math.round(dist)}m off campus`); setTimeout(() => setScanPhase('geo-fail'), 800) }
       },

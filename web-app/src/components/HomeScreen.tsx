@@ -15,19 +15,15 @@ export default function HomeScreen({ onSelectRole }: Props) {
   const [geoLabel, setGeoLabel] = useState('Locating you…')
 
   useEffect(() => {
-    setGeoLabel('📍 Geo check disabled')
-    /* geo check disabled
     if (!navigator.geolocation) { setGeoLabel('📍 Location unavailable'); return }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const dist = haversine(pos.coords.latitude, pos.coords.longitude, 11.0027, 124.6075)
+        const dist = haversine(pos.coords.latitude, pos.coords.longitude, 11.021893, 124.587584)
         setGeoLabel(dist <= 300 ? `📍 On campus (${Math.round(dist)}m from gate)` : `📍 Off campus — ${Math.round(dist)}m away`)
       },
       () => setGeoLabel('📍 Location unavailable'),
       { enableHighAccuracy: true, timeout: 8000 }
     )
-    */
-
   }, [])
 
   return (

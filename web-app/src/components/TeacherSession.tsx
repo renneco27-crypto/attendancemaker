@@ -113,16 +113,13 @@ export default function TeacherSession({ onLogout }: Props) {
   }
 
   async function handleReject(requestId: string) {
-    const { error } = await supabase()
-      .from('device_registrations')
-      .update({ status: 'revoked' })
-      .eq('id', requestId)
-      .eq('teacher_id', teacherId)
-    if (!error) fetchPending()
+    const ok = await revokeDevice(requestId)
+    if (ok) fetchPending()
   }
 
   async function handleAddStudent() {
     if (!newStudentName.trim()) return
+    if (!teacherId) { alert('Teacher ID not available. Try logging out and back in.'); return }
     const { error } = await supabase()
       .from('device_registrations')
       .insert({ student_name: newStudentName.trim(), teacher_id: teacherId, device_identifier: '', status: 'pending' })
@@ -385,7 +382,7 @@ export default function TeacherSession({ onLogout }: Props) {
                     <span className={`status-pill ${r.status === 'approved' ? 'sp-approved' : r.status === 'pending' ? 'sp-pending' : 'sp-revoked'}`}>
                       {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
                     </span>
-                    {r.status === 'approved' && <button className="remove-btn" onClick={() => handleRemoveStudent(r.id)}>Remove</button>}
+                    <button className="remove-btn" onClick={() => handleRemoveStudent(r.id)}>Delete</button>
                   </div>
                 ))}
               </div>

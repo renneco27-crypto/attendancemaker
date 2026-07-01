@@ -64,12 +64,12 @@ serve(async (req) => {
       })
     }
 
-    const { error: updateError } = await supabase
+    const { error: deleteError } = await supabase
       .from('device_registrations')
-      .update({ status: 'revoked' })
+      .delete()
       .eq('id', device_registration_id)
 
-    if (updateError) {
+    if (deleteError) {
       return new Response(JSON.stringify({ error: 'Server error' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

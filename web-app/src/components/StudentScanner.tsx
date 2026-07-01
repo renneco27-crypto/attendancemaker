@@ -40,6 +40,12 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
     return () => { stopScanner(); if (timerRef.current) clearTimeout(timerRef.current) }
   }, [])
 
+  useEffect(() => {
+    if (scanPhase === 'scanning') {
+      startCamera()
+    }
+  }, [scanPhase])
+
   function checkGeo() {
     if (!navigator.geolocation) { setGeoText('⚠️ Could not verify location'); return }
     navigator.geolocation.getCurrentPosition(
@@ -53,11 +59,14 @@ export default function StudentScanner({ onBack, pinValue }: Props) {
     )
   }
 
-  async function startScan() {
-    setScanPhase('scanning')
+  function startScan() {
     finishingRef.current = false
     capturedRef.current = []
     setCapturedCount(0)
+    setScanPhase('scanning')
+  }
+
+  async function startCamera() {
     const scanner = new Html5Qrcode(SCANNER_ID)
     scannerRef.current = scanner
 
